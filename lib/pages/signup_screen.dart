@@ -1,10 +1,12 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart'; // Added API config
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../transitions/page_transitions.dart';
 import 'login_screen.dart';
-
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -34,7 +36,8 @@ class _SignupScreenState extends State<SignupScreen> {
     super.dispose();
   }
 
-  void _handleSignUp() async {
+  // 🚀 THE NEW FULL-STACK SIGNUP LOGIC
+  Future<void> _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
       if (!_agreeToTerms) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -47,33 +50,59 @@ class _SignupScreenState extends State<SignupScreen> {
       }
 
       setState(() => _isLoading = true);
-      await Future.delayed(const Duration(seconds: 2));
-      setState(() => _isLoading = false);
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Welcome, ${_nameController.text}!'),
-            backgroundColor: AppTheme.primaryColor,
-          ),
+      try {
+        final response = await http.post(
+          Uri.parse('${ApiConfig.baseUrl}/signup'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+            'password': _passwordController.text,
+          }),
         );
 
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Welcome, ${_nameController.text}!'),
-            backgroundColor: AppTheme.primaryColor,
-          ),
-        );
+        final data = jsonDecode(response.body);
 
-        await Future.delayed(const Duration(milliseconds: 500));
-        if (mounted) {
+        if (response.statusCode == 201) {
+          // Success!
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Welcome, ${_nameController.text}! Account created.'),
+              backgroundColor: AppTheme.primaryColor,
+            ),
+          );
+
+          await Future.delayed(const Duration(milliseconds: 500));
+          if (!mounted) return;
+
+          // Send them to login screen
           Navigator.of(context).pushReplacement(
             ModernPageRoute(page: const LoginScreen()), 
           );
+        } else {
+          // Server returned an error (like "Email already in use")
+          if (!mounted) return;
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(data['message'] ?? 'Sign up failed. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
         }
-      }
+      } catch (e) {
+        // Network error (Server is off, etc.)
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Network error. Check your connection to the server.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+        debugPrint("Signup Error: $e");
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }

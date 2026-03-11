@@ -1,86 +1,174 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';  
 
 class ResultPage extends StatelessWidget {
   final VoidCallback? onBackToHome;
   final VoidCallback? onPracticeAgain;
+  final Map<String, dynamic>? sessionData; 
 
-  const ResultPage({super.key, this.onBackToHome, this.onPracticeAgain});
+  const ResultPage({
+    super.key,
+    this.onBackToHome,
+    this.onPracticeAgain,
+    this.sessionData,
+  });
+
+  Color _getScoreColor(num score) {
+    if (score >= 90) return const Color(0xFF3FBD7A); 
+    if (score >= 75) return const Color(0xFF3F7CF4); 
+    if (score >= 60) return const Color(0xFFF5A623); 
+    return const Color(0xFFEF4444);                  
+  }
+
+  String _getScoreLabel(num score) {
+    if (score >= 90) return 'Excellent 🎉';
+    if (score >= 75) return 'Good 👍';
+    if (score >= 60) return 'Fair 😐';
+    return 'Needs Work 📈';
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ColoredBox(
-      color: const Color(0xFFF2F4F7),
-      child: SafeArea(
-        bottom: true,
+    final data = sessionData ?? {};
+
+    // Map exact variables from MongoDB Schema
+    final int wpmDisplay = (data['wpmScore'] ?? 126).toInt();
+    final int fillerDisplay = (data['fillerWordCount'] ?? 1).toInt();
+    final int energyDisplay = (data['energyScore'] ?? 72).toInt();
+
+    // Calculate a 1-100 score for WPM (Assuming ~150 is optimal)
+    double wpmScoreVal = (data['wpmScore'] != null) ? (data['wpmScore'] / 2.0).clamp(0.0, 100.0) : 85.0;
+
+    // TODO: Implement real clarity score calculation
+    // double clarityVal = data['clarityScore'] != null ? data['clarityScore'].toDouble() : 0.0;
+    // final int overallScore = ((wpmScoreVal + energyDisplay + clarityVal) / 3).round();
+    
+    // Overall average
+    final int overallScore = ((wpmScoreVal + energyDisplay + 90.0) / 3).round();
+    final Color overallColor = _getScoreColor(overallScore);
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: SingleChildScrollView(
         child: Column(
           children: [
-              SizedBox(
-                height: 240, // header (180) + overlap (60)
-                child: Stack(
-                  clipBehavior: Clip.none,
-                  children: [
-                    _header(),
-                    Positioned(
-                      bottom: 0,
-                      left: 20,
-                      right: 20,
-                      child: _scoreCard(),
+            Container(
+              color: const Color(0xFF3F7CF4),
+              padding: const EdgeInsets.fromLTRB(20, 50, 20, 40),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  GestureDetector(
+                    onTap: onBackToHome,
+                    child: const Row(
+                      children: [
+                        Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
+                        Text('Back to Home', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                      ],
                     ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 24),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 30),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(20),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 5))],
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                          overallScore.toString(),
+                          style: TextStyle(fontSize: 56, fontWeight: FontWeight.bold, color: overallColor),
+                        ),
+                        const SizedBox(height: 4),
+                        const Text('Overall Score', style: TextStyle(color: Colors.grey, fontSize: 16)),
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                          decoration: BoxDecoration(
+                            color: overallColor.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            _getScoreLabel(overallScore),
+                            style: TextStyle(color: overallColor, fontWeight: FontWeight.bold, fontSize: 14),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              Expanded(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 0, 20, 120),
-                  child: Column(
-                    children: [
-                      const SizedBox(height: 4),
-                      _sectionTitle(),
-                    const SizedBox(height: 14),
-                    _metricCard(
-                      icon: Icons.volume_up_outlined,
-                      iconColor: const Color(0xFF26B5A0),
-                      iconBg: const Color(0xFFD6F5F0),
-                      title: "Pace",
-                      subtitle: "126 words per minute",
-                      score: "92",
-                      scoreColor: const Color(0xFF3F7CF4),
-                      progressColor: const Color(0xFF3FBD7A),
-                      comment:
-                          "✓ Good pacing. Try to maintain consistency throughout.",
+            ),
+
+            Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('Performance Breakdown', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black54)),
+                  const SizedBox(height: 16),
+
+                  _buildMetricCard(
+                    icon: Icons.volume_up_outlined,
+                    title: 'Pace',
+                    subtitle: '$wpmDisplay words per minute',
+                    score: wpmScoreVal.toInt(),
+                    feedback: 'Good pacing. Try to maintain consistency throughout.',
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildMetricCard(
+                    icon: Icons.chat_bubble_outline,
+                    title: 'Clarity',
+                    subtitle: '$fillerDisplay filler words detected',
+                    score: fillerDisplay <= 3 ? 95 : 70, // Logic: Fewer fillers = higher score
+                    feedback: 'Minimal filler words. Watch for "um" and "uh".',
+                  ),
+                  const SizedBox(height: 16),
+
+                  _buildMetricCard(
+                    icon: Icons.bolt,
+                    title: 'Energy',
+                    subtitle: 'Vocal projection and emotion',
+                    score: energyDisplay,
+                    feedback: 'Good energy level.',
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accentColor,
+                        foregroundColor: AppTheme.backgroundColor,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        elevation: 0,
+                      ),
+                      // If onPracticeAgain is null, act like "Back" just to prevent crash
+                      onPressed: onPracticeAgain ?? onBackToHome, 
+                      child: const Text('Practice Again', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                    const SizedBox(height: 14),
-                    _metricCard(
-                      icon: Icons.chat_bubble_outline,
-                      iconColor: const Color(0xFF26B5A0),
-                      iconBg: const Color(0xFFD6F5F0),
-                      title: "Clarity",
-                      subtitle: "1 filler words detected",
-                      score: "94",
-                      scoreColor: const Color(0xFF3F7CF4),
-                      progressColor: const Color(0xFF3FBD7A),
-                      comment:
-                          '✓ Minimal filler words. Watch for "um" and "uh".',
+                  ),
+                  const SizedBox(height: 12),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFF3F7CF4), width: 1.5),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                      ),
+                      onPressed: onBackToHome,
+                      child: const Text('Back to Home', style: TextStyle(color: Color(0xFF3F7CF4), fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
-                    const SizedBox(height: 14),
-                    _metricCard(
-                      icon: Icons.flash_on_outlined,
-                      iconColor: const Color(0xFFF5A623),
-                      iconBg: const Color(0xFFFFF3DC),
-                      title: "Energy",
-                      subtitle: "Strong vocal projection",
-                      score: "72",
-                      scoreColor: const Color(0xFFF5A623),
-                      progressColor: const Color(0xFFF5A623),
-                      comment: "✓ Good energy level.",
-                    ),
-                    const SizedBox(height: 28),
-                    _primaryButton(),
-                    const SizedBox(height: 14),
-                    _secondaryButton(),
-                    const SizedBox(height: 20),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 40),
+                ],
               ),
             ),
           ],
@@ -89,253 +177,66 @@ class ResultPage extends StatelessWidget {
     );
   }
 
-  Widget _header() {
-    return Container(
-      height: 180,
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Color(0xFF3F7CF4), Color(0xFF4F8DF7)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: onBackToHome,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, color: Colors.white, size: 18),
-                Text(
-                  "Back to Home",
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 13,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          const Text(
-            "Session Results",
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 22,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 6),
-          const Text(
-            "February 26, 2026 • 00:10 duration",
-            style: TextStyle(
-              color: Colors.white70,
-              fontSize: 13,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _scoreCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        boxShadow: const [
-          BoxShadow(
-            color: Colors.black12,
-            blurRadius: 15,
-            offset: Offset(0, 6),
-          ),
-        ],
-      ),
-      child: Column(
-        children: [
-          const Text(
-            "87",
-            style: TextStyle(
-              fontSize: 52,
-              fontWeight: FontWeight.bold,
-              color: Color(0xFF3FBD7A),
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            "Overall Score",
-            style: TextStyle(color: Colors.grey, fontSize: 14),
-          ),
-          const SizedBox(height: 14),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
-            decoration: BoxDecoration(
-              color: const Color(0xFFDFF5E8),
-              borderRadius: BorderRadius.circular(30),
-            ),
-            child: const Text(
-              "Excellent 🎉",
-              style: TextStyle(
-                color: Color(0xFF1F8F4C),
-                fontWeight: FontWeight.w600,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _sectionTitle() {
-    return const Align(
-      alignment: Alignment.centerLeft,
-      child: Text(
-        "Performance Breakdown",
-        style: TextStyle(
-          fontSize: 16,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-    );
-  }
-
-  Widget _metricCard({
+  Widget _buildMetricCard({
     required IconData icon,
-    required Color iconColor,
-    required Color iconBg,
     required String title,
     required String subtitle,
-    required String score,
-    required Color scoreColor,
-    required Color progressColor,
-    required String comment,
+    required int score,
+    required String feedback,
   }) {
+    final Color scoreColor = _getScoreColor(score);
+    final double progressValue = (score / 100.0).clamp(0.0, 1.0); 
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 6),
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 3))],
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: iconBg,
-                child: Icon(icon, color: iconColor, size: 20),
+                backgroundColor: scoreColor.withOpacity(0.15),
+                child: Icon(icon, color: scoreColor, size: 20),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      title,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.w600,
-                        fontSize: 14,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      subtitle,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey,
-                      ),
-                    ),
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                    Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),
               ),
               Text(
-                score,
-                style: TextStyle(
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                  color: scoreColor,
-                ),
+                score.toString(),
+                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: scoreColor),
               ),
             ],
           ),
-          const SizedBox(height: 12),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(20),
-            child: LinearProgressIndicator(
-              value: int.parse(score) / 100,
-              backgroundColor: Colors.grey.shade200,
-              valueColor: AlwaysStoppedAnimation(progressColor),
-              minHeight: 7,
-            ),
+          const SizedBox(height: 16),
+          LinearProgressIndicator(
+            value: progressValue,
+            backgroundColor: Colors.grey[200],
+            valueColor: AlwaysStoppedAnimation<Color>(scoreColor),
+            minHeight: 6,
+            borderRadius: BorderRadius.circular(10),
           ),
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: Text(
-              comment,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              const Icon(Icons.check, size: 14, color: Colors.grey),
+              const SizedBox(width: 6),
+              Expanded(child: Text(feedback, style: const TextStyle(color: Colors.grey, fontSize: 12))),
+            ],
           ),
         ],
-      ),
-    );
-  }
-
-  Widget _primaryButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF3F7CF4),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-          elevation: 0,
-        ),
-        onPressed: onPracticeAgain,
-        child: const Text(
-          "Practice Again",
-          style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 15,
-            color: Colors.white,
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _secondaryButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: OutlinedButton(
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: Color(0xFF3F7CF4), width: 1.5),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
-        onPressed: onBackToHome,
-        child: const Text(
-          "Back to Home",
-          style: TextStyle(
-            color: Color(0xFF3F7CF4),
-            fontWeight: FontWeight.w600,
-            fontSize: 15,
-          ),
-        ),
       ),
     );
   }

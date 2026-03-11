@@ -1,15 +1,18 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 
-
 class EditProfileScreen extends StatefulWidget {
+  final String userId; // 👈 Needs to know WHO to update
   final String userName;
   final String userEmail;
 
   const EditProfileScreen({
     super.key,
+    required this.userId,
     required this.userName,
     required this.userEmail,
   });
@@ -22,6 +25,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _nameController;
   late TextEditingController _emailController;
   final _formKey = GlobalKey<FormState>();
+  
+  bool _isLoading = false; // 👈 Added for the loading state
 
   @override
   void initState() {
@@ -37,16 +42,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     super.dispose();
   }
 
-  void _saveChanges() {
+  //The DB Save function
+  Future<void> _saveChanges() async {
     if (_formKey.currentState!.validate()) {
-      Navigator.pop(
-        context,
-        {
-          'name': _nameController.text.trim(),
-          'email': _emailController.text.trim(),
-        },
-      );
-      // Send updated data to DB
+      setState(() => _isLoading = true);
+
+      try {
+        final response = await http.put(
+          Uri.parse('http://172.20.10.2:5000/api/user/${widget.userId}'),
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            'name': _nameController.text.trim(),
+            'email': _emailController.text.trim(),
+          }),
+        );
+
+        if (response.statusCode == 200) {
+          if (!mounted) return;
+          
+          // Pop the screen and return the new data to the Profile Screen
+          Navigator.pop(
+            context,
+            {
+              'name': _nameController.text.trim(),
+              'email': _emailController.text.trim(),
+            },
+          );
+
+          // Show a nice success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Profile updated successfully!'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          throw Exception('Failed to update database');
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error saving: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -87,7 +130,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
                 const SizedBox(height: 24),
-                // Bold Page Title
                 const Text(
                   'Edit Profile',
                   style: TextStyle(
@@ -100,7 +142,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             ),
           ),
 
-          // Scrollable Form Area Below Header
           Expanded(
             child: SingleChildScrollView(
               child: Padding(
@@ -110,7 +151,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Full Name Container Wrapper
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -142,12 +182,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               hintText: 'Enter your name',
                               keyboardType: TextInputType.name,
                               validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your name';
-                                }
-                                if (value.length < 2) {
-                                  return 'Name must be at least 2 characters';
-                                }
+                                if (value == null || value.isEmpty) return 'Please enter your name';
+                                if (value.length < 2) return 'Name must be at least 2 characters';
                                 return null;
                               },
                             ),
@@ -157,7 +193,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Email Container Wrapper
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -189,9 +224,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               hintText: 'Enter your email',
                               keyboardType: TextInputType.emailAddress,
                               validator: (value) {
-                                if (value == null || value.isEmpty) {
-                                  return 'Please enter your email';
-                                }
+                                if (value == null || value.isEmpty) return 'Please enter your email';
                                 if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                                   return 'Please enter a valid email';
                                 }
@@ -204,11 +237,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       const SizedBox(height: 40),
 
-                      // Save Changes Button
-                      PrimaryButton(
-                        text: 'Save Changes',
-                        onPressed: _saveChanges,
-                      ),
+                      // Change the button to show a loading spinner when pressed
+                      _isLoading
+                          ? const Center(child: CircularProgressIndicator())
+                          : PrimaryButton(
+                              text: 'Save Changes',
+                              onPressed: _saveChanges,
+                            ),
                     ],
                   ),
                 ),

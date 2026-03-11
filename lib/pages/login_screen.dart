@@ -3,6 +3,8 @@ import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../transitions/page_transitions.dart';
+import '../services/auth_service.dart';
+import '../main.dart';
 import 'signup_screen.dart';
 
 
@@ -29,28 +31,53 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _handleLogin() async {
-    debugPrint('>>> Button pressed');
+  final isValid = _formKey.currentState!.validate();
 
-    final isValid = _formKey.currentState!.validate();
-    debugPrint('>>> Validation result: $isValid');
+  if (isValid) {
+    setState(() => _isLoading = true);
 
-    if (isValid) {
-      setState(() => _isLoading = true);
-      await Future.delayed(const Duration(milliseconds: 1500));
+    try {
+      // Call REAL Node.js Backend
+      final result = await AuthService().login(
+        _emailController.text.trim(),
+        _passwordController.text.trim(),
+      );
+
       setState(() => _isLoading = false);
 
-      debugPrint('>>> mounted: $mounted');
+      if (result['token'] != null) {
+        final String userId = result['user']['id'];
+        
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Login successful!')),
+          ); 
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => MainPage(userId: userId),
+            ),
+            (route) => false,
+          );
+        }
 
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text(result['message'] ?? 'Login failed')),
+          );
+        }
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
       if (mounted) {
-        debugPrint('>>> Navigating now...');
-        Navigator.pushNamedAndRemoveUntil(
-          context,
-          '/main',
-          (route) => false,
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not connect to server. Check your IP/Wi-Fi.')),
         );
       }
     }
   }
+}
 
   void _goToSignUp() {
     Navigator.push(

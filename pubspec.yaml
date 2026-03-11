@@ -35,6 +35,9 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   shared_preferences: ^2.2.2
+  record: ^6.2.0          # The engine that actually captures the audio
+  path_provider: ^2.1.5   # Helps us find a safe folder to save the file
+  http: ^1.6.0
 
 
 dev_dependencies:

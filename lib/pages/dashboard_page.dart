@@ -1,15 +1,20 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'learning_resources_page.dart';
 import 'profile_screen.dart';
+import 'result_page.dart';
 
 class DashBoardPage extends StatefulWidget {
   final VoidCallback onStartPractice;
   final VoidCallback onLearningResources;
+  final String userId;
 
   const DashBoardPage({
     super.key,
     required this.onStartPractice,
     required this.onLearningResources,
+    required this.userId, 
   });
   
   @override
@@ -17,120 +22,170 @@ class DashBoardPage extends StatefulWidget {
 }
 
 class _DashBoardPageState extends State<DashBoardPage> {
+  bool _isLoading = true;
+  Map<String, dynamic> _userStats = {
+    'totalSessions': 0,
+    'avgScore': 0,
+    'daysActive': 0, 
+  };
+  List<dynamic> _recentSessionsList = [];
+
   @override
-  Widget build(BuildContext context) {
-    return SafeArea(
-      child: SingleChildScrollView(
-        child: Column(
-          children: [
-            _header(context),
-            const SizedBox(height: 16),
-            _statsCard(),
-            const SizedBox(height: 16),
-            _startPracticeButton(),
-            const SizedBox(height: 12),
-            _learningResourcesButton(context),
-            const SizedBox(height: 20),
-            _recentSessions(),
-            const SizedBox(height: 88),
-          ],
-        ),
-      ),
-    );
+  void initState() {
+    super.initState();
+    _fetchDashboardData();
   }
 
-  Widget _header(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
-      constraints: const BoxConstraints(minHeight: 120),
-      decoration: const BoxDecoration(
-        color: Color(0xFF3F7CF4),
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Column(
+  Color _getScoreColor(dynamic scoreValue) {
+    final double score = double.tryParse(scoreValue.toString()) ?? 0;
+    if (score >= 90) return const Color(0xFF3FBD7A); 
+    if (score >= 75) return const Color(0xFF3F7CF4); 
+    if (score >= 60) return const Color(0xFFF5A623); 
+    return const Color(0xFFEF4444);                
+  }
+
+  Future<void> _fetchDashboardData() async {
+    try {
+      // Use your local IP if testing locally!
+      final statsRes = await http.get(Uri.parse('http://172.20.10.2:5000/api/stats/${widget.userId}'));
+      final historyRes = await http.get(Uri.parse('http://172.20.10.2:5000/api/sessions/${widget.userId}'));
+
+      if (statsRes.statusCode == 200) {
+        final data = jsonDecode(statsRes.body);
+        final overallStats = data['overallStats'] ?? {};
+        final sessions = data['sessions'] as List<dynamic>? ?? [];
+
+        // Calculate unique days active
+        Set<String> uniqueDays = {};
+        for (var s in sessions) {
+           if (s['createdAt'] != null) {
+             uniqueDays.add(s['createdAt'].substring(0, 10));
+           }
+        }
+
+        // Calculate a simulated average score based on WPM and Energy
+        double avgWpm = overallStats['avgWPM'] != null ? (overallStats['avgWPM'] / 2.0).clamp(0.0, 100.0) : 85.0;
+        double avgEnergy = overallStats['avgEnergy'] != null ? overallStats['avgEnergy'].toDouble() : 80.0;
+        int overallScore = ((avgWpm + avgEnergy + 90.0) / 3).round();
+
+        _userStats = {
+          'totalSessions': overallStats['totalSessions'] ?? 0,
+          'avgScore': overallScore,
+          'daysActive': uniqueDays.length,
+        };
+      }
+
+      if (historyRes.statusCode == 200) {
+        _recentSessionsList = jsonDecode(historyRes.body);
+      }
+
+      setState(() => _isLoading = false);
+    } catch (e) {
+      debugPrint("Error fetching data: $e");
+      setState(() => _isLoading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return _isLoading 
+      ? const Center(child: CircularProgressIndicator()) 
+      : RefreshIndicator(
+          onRefresh: _fetchDashboardData, // Swipe down to refresh manually if needed
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              children: [
+                _headerWithOverlappingCard(context),
+                const SizedBox(height: 60), 
+                _startPracticeButton(),
+                const SizedBox(height: 12),
+                _learningResourcesButton(context),
+                const SizedBox(height: 20),
+                _recentSessions(),
+                const SizedBox(height: 120), 
+              ],
+            ),
+          ),
+        );
+  }
+
+  Widget _headerWithOverlappingCard(BuildContext context) {
+    final double topPadding = MediaQuery.of(context).padding.top;
+
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: double.infinity,
+          height: 180 + topPadding, 
+          padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
+          decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'iSpeak',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontSize: 22,
-                  fontWeight: FontWeight.bold,
-                ),
+              const Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('iSpeak', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Improve your public speaking', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                ],
               ),
-              SizedBox(height: 8),
-              Text(
-                'Improve your public speaking',
-                style: TextStyle(
-                  color: Colors.white70,
-                  fontSize: 13,
+              GestureDetector(
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId),)),
+                child: const CircleAvatar(
+                  radius: 24,
+                  backgroundColor: Colors.white,
+                  child: Icon(Icons.person_outline, color: Color(0xFF3F7CF4), size: 28),
                 ),
               ),
             ],
           ),
-          // ✅ Tappable profile icon
-          GestureDetector(
-            onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (_) => const ProfileScreen()),
-              );
-            },
-            child: const CircleAvatar(
-              radius: 20,
-              backgroundColor: Colors.white,
-              child: Icon(Icons.person, color: Color(0xFF3F7CF4)),
+        ),
+        
+        Positioned(
+          bottom: -40, 
+          child: Container(
+            width: MediaQuery.of(context).size.width * 0.88,
+            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))],
+            ),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _StatItem(
+                  value: _userStats['totalSessions'].toString(), 
+                  label: 'Sessions',
+                  valueColor: const Color(0xFF3F7CF4),
+                ),
+                const _VerticalDivider(),
+                _StatItem(
+                  value: (_userStats['avgScore'] ?? 0).toString(),
+                  label: 'Avg Score',
+                  valueColor: _getScoreColor(_userStats['avgScore'] ?? 0),
+                ),
+                const _VerticalDivider(),
+                _StatItem(
+                  value: (_userStats['daysActive'] ?? 0).toString(), 
+                  label: 'Days Active',
+                  valueColor: const Color(0xFF3F7CF4),
+                ),
+              ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  Widget _statsCard() {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 12),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: const [
-            BoxShadow(color: Colors.black12, blurRadius: 10),
-          ],
         ),
-        child: const Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            _StatItem(
-              value: '5',
-              label: 'Sessions',
-              valueColor: Color(0xFF3F7CF4),
-            ),
-            _VerticalDivider(),
-            _StatItem(
-              value: '71',
-              label: 'Avg Score',
-              valueColor: Color(0xFFF5A623),
-            ),
-            _VerticalDivider(),
-            _StatItem(
-              value: '5',
-              label: 'Days Active',
-              valueColor: Color(0xFF3F7CF4),
-            ),
-          ],
-        ),
-      ),
+      ],
     );
   }
 
   Widget _startPracticeButton() {
-    return Padding(
+     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
         onTap: () => widget.onStartPractice(),
@@ -140,13 +195,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
           decoration: BoxDecoration(
             color: const Color(0xFF3F7CF4),
             borderRadius: BorderRadius.circular(16),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
           ),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -156,22 +205,9 @@ class _DashBoardPageState extends State<DashBoardPage> {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    'Start Practice',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
+                  Text('Start Practice', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                   SizedBox(height: 2),
-                  Text(
-                    'English & Filipino supported',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 12,
-                    ),
-                  ),
+                  Text('English & Filipino supported', style: TextStyle(color: Colors.white70, fontSize: 12)),
                 ],
               ),
             ],
@@ -182,18 +218,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
   }
 
   Widget _learningResourcesButton(BuildContext context) {
-    return Padding(
+     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
-        onTap: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => LearningResourcesScreen(
-                onBack: () => Navigator.of(context).pop(),
-              ),
-            ),
-          );
-        },
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LearningResourcesScreen(onBack: () => Navigator.of(context).pop()))),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -201,27 +229,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
             color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: const Color(0xFF3F7CF4), width: 1.5),
-            boxShadow: const [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 8,
-                offset: Offset(0, 4),
-              ),
-            ],
+            boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
           ),
           child: const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               Icon(Icons.menu_book_outlined, color: Color(0xFF3F7CF4), size: 20),
               SizedBox(width: 8),
-              Text(
-                'Learning Resources',
-                style: TextStyle(
-                  color: Color(0xFF3F7CF4),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              Text('Learning Resources', style: TextStyle(color: Color(0xFF3F7CF4), fontSize: 15, fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -230,37 +245,58 @@ class _DashBoardPageState extends State<DashBoardPage> {
   }
 
   Widget _recentSessions() {
-    return const Padding(
-      padding: EdgeInsets.symmetric(horizontal: 20),
+    if (_recentSessionsList.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(40),
+        child: Text("No sessions yet. Start practicing!", style: TextStyle(color: Colors.grey)),
+      );
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Recent Sessions',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          SizedBox(height: 12),
-          _SessionCard(
-            date: 'Jan 28, 2026',
-            score: '92',
-            pace: '135 WPM',
-            clarity: '95%',
-            energy: '88%',
-          ),
-          _SessionCard(
-            date: 'Jan 27, 2026',
-            score: '76',
-            pace: '125 WPM',
-            clarity: '82%',
-            energy: '72%',
-          ),
-          _SessionCard(
-            date: 'Jan 26, 2026',
-            score: '58',
-            pace: '110 WPM',
-            clarity: '65%',
-            energy: '55%',
-          ),
+          const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          ..._recentSessionsList.map((session) {
+            String rawDate = session['createdAt'] ?? '';
+            String shortDate = rawDate.isNotEmpty ? rawDate.substring(0, 10) : 'Unknown Date';
+            
+            // Calculate a score for the card
+            double wpmVal = session['wpmScore'] != null ? (session['wpmScore'] / 2.0).clamp(0.0, 100.0) : 85.0;
+            double nrgVal = session['energyScore'] != null ? session['energyScore'].toDouble() : 80.0;
+
+            // TODO: Implement clarity score calculation
+            // double clarityVal = session['clarityScore'] != null ? session['clarityScore'].toDouble() : 0.0;
+            //int score = ((wpmVal + nrgVal + clarityVal) / 3).round();
+
+            int score = ((wpmVal + nrgVal + 90.0) / 3).round(); 
+
+            return GestureDetector(
+              onTap: () {
+                // AUTO-REFRESH MAGIC: .then() triggers when you return from the ResultPage
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => ResultPage(
+                    sessionData: session,
+                    onBackToHome: () => Navigator.pop(context),
+                    onPracticeAgain: () {
+                      Navigator.pop(context);
+                      widget.onStartPractice();
+                    }
+                  ))
+                ).then((_) => _fetchDashboardData()); 
+              },
+              child: _SessionCard(
+                date: shortDate,
+                score: score.toString(),
+                pace: '${session['wpmScore'] ?? 0} WPM',
+                clarity: '${session['fillerWordCount'] ?? 0} Fillers',
+                energy: '${session['energyScore'] ?? 0}%',
+              ),
+            ); 
+          }),
         ],
       ),
     );
@@ -271,30 +307,15 @@ class _StatItem extends StatelessWidget {
   final String value;
   final String label;
   final Color valueColor;
-
-  const _StatItem({
-    required this.value,
-    required this.label,
-    required this.valueColor,
-  });
+  const _StatItem({required this.value, required this.label, required this.valueColor});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.bold,
-            color: valueColor,
-          ),
-        ),
+        Text(value, style: TextStyle(fontSize: 26, fontWeight: FontWeight.bold, color: valueColor)),
         const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(color: Colors.grey, fontSize: 13),
-        ),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 13)),
       ],
     );
   }
@@ -302,15 +323,8 @@ class _StatItem extends StatelessWidget {
 
 class _VerticalDivider extends StatelessWidget {
   const _VerticalDivider();
-
   @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      width: 1,
-      color: Colors.grey[300],
-    );
-  }
+  Widget build(BuildContext context) => Container(height: 40, width: 1, color: Colors.grey[300]);
 }
 
 class _SessionCard extends StatelessWidget {
@@ -320,19 +334,14 @@ class _SessionCard extends StatelessWidget {
   final String clarity;
   final String energy;
 
-  const _SessionCard({
-    required this.date,
-    required this.score,
-    required this.pace,
-    required this.clarity,
-    required this.energy,
-  });
+  const _SessionCard({required this.date, required this.score, required this.pace, required this.clarity, required this.energy});
 
   Color get _scoreColor {
     final s = int.tryParse(score) ?? 0;
     if (s >= 90) return const Color(0xFF3FBD7A);
-    if (s >= 70) return const Color(0xFF3F7CF4);
-    return const Color(0xFFF5A623);
+    if (s >= 75) return const Color(0xFF3F7CF4);
+    if (s >= 60) return const Color(0xFFF5A623);
+    return const Color(0xFFEF4444);
   }
 
   @override
@@ -343,30 +352,15 @@ class _SessionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(12),
-        boxShadow: const [
-          BoxShadow(color: Colors.black12, blurRadius: 8)
-        ],
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
       ),
       child: Column(
         children: [
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                date,
-                style: const TextStyle(
-                  fontWeight: FontWeight.w600,
-                  fontSize: 14,
-                ),
-              ),
-              Text(
-                score,
-                style: TextStyle(
-                  fontSize: 26,
-                  fontWeight: FontWeight.bold,
-                  color: _scoreColor,
-                ),
-              ),
+              Text(date, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black54)),
+              Text(score, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _scoreColor)),
             ],
           ),
           const SizedBox(height: 12),
@@ -374,7 +368,7 @@ class _SessionCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _Metric(label: 'Pace', value: pace),
-              _Metric(label: 'Clarity', value: clarity),
+              _Metric(label: 'Fillers', value: clarity), 
               _Metric(label: 'Energy', value: energy),
             ],
           ),
@@ -387,32 +381,16 @@ class _SessionCard extends StatelessWidget {
 class _Metric extends StatelessWidget {
   final String label;
   final String value;
-
-  const _Metric({
-    required this.label,
-    required this.value,
-  });
+  const _Metric({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Colors.grey,
-          ),
-        ),
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
         const SizedBox(height: 2),
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 13,
-          ),
-        ),
+        Text(value, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
       ],
     );
   }

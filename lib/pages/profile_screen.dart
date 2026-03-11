@@ -1,39 +1,112 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import '../config/api_config.dart'; 
 import '../theme/app_theme.dart';        
 import 'language_screen.dart';  
 import 'editprofile_screen.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({super.key});
+  final String userId; 
+  const ProfileScreen({super.key, required this.userId});
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  // These will be populated from DB
-  String userName = "";
-  String userEmail = "";
+  String userName = "Loading...";
+  String userEmail = "Loading...";
   String userInitials = "";
-  String selectedLanguage = "";
+  String selectedLanguage = "English";
   
   int sessions = 0;
   int avgScore = 0; 
   int dayStreak = 0;
 
+  bool _isLoading = true;
+
   @override
   void initState() {
     super.initState();
-    // Load user data from DB
     _loadUserData();
   }
 
+  Color _getScoreColor(int score) {
+    if (score >= 85) return const Color(0xFF4CAF50); // Green
+    if (score >= 70) return const Color(0xFFFFC107); // Yellow
+    if (score >= 50) return const Color(0xFFFF9800); // Orange
+    return const Color(0xFFEF4444); // Red
+  }
+
   Future<void> _loadUserData() async {
-    // TODO: Fetch from MongoDB via API
-    // For now, just show loading state
+    try {
+      final userRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'));
+      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'));
+
+      if (userRes.statusCode == 200) {
+        final userData = jsonDecode(userRes.body);
+        
+        userName = userData['name'] ?? userData['username'] ?? "Unknown User";
+        userEmail = userData['email'] ?? "No email provided";
+        
+        if (userName != "Unknown User" && userName.isNotEmpty) {
+          List<String> names = userName.trim().split(' ');
+          if (names.length > 1) {
+            userInitials = '${names[0][0]}${names[1][0]}'.toUpperCase();
+          } else {
+            userInitials = names[0][0].toUpperCase();
+          }
+        } else {
+          userInitials = "?";
+        }
+      } else {
+        userName = "User Not Found";
+        userEmail = "Server returned ${userRes.statusCode}";
+        userInitials = "!";
+      }
+
+      // --- STATS DATA FIX ---
+      if (statsRes.statusCode == 200) {
+        final statsData = jsonDecode(statsRes.body);
+        final overallStats = statsData['overallStats'] ?? {};
+        final sessionsList = statsData['sessions'] as List<dynamic>? ?? [];
+        
+        sessions = overallStats['totalSessions'] ?? 0;
+        
+        double avgWpm = overallStats['avgWPM'] != null ? (overallStats['avgWPM'] / 2.0).clamp(0.0, 100.0) : 85.0;
+        double avgEnergy = overallStats['avgEnergy'] != null ? overallStats['avgEnergy'].toDouble() : 80.0;
+       
+        // TODO: Implement real clarity score calculation
+        // double avgClarity = overallStats['avgClarity'] != null ? overallStats['avgClarity'].toDouble() : 0.0;
+        // avgScore = ((avgWpm + avgEnergy + avgClarity) / 3).round();
+
+        avgScore = ((avgWpm + avgEnergy + 90.0) / 3).round();
+
+        Set<String> uniqueDays = {};
+        for (var s in sessionsList) {
+           if (s['createdAt'] != null) {
+             uniqueDays.add(s['createdAt'].substring(0, 10));
+           }
+        }
+        dayStreak = uniqueDays.length; 
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+    } catch (e) {
+      debugPrint("Error fetching profile data: $e");
+      setState(() {
+        _isLoading = false;
+        userName = "Network Error";
+        userEmail = "Check connection";
+        userInitials = "!";
+      });
+    }
   }
 
   void _goToLanguageScreen() {
@@ -44,7 +117,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (value != null) {
         setState(() {
           selectedLanguage = value;
-          // Save language preference to DB
         });
       }
     });
@@ -55,28 +127,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
       context,
       MaterialPageRoute(
         builder: (context) => EditProfileScreen(
+          userId: widget.userId,
           userName: userName,
           userEmail: userEmail,
         ),
       ),
     ).then((value) {
       if (value != null) {
-        setState(() {
-          userName = value['name'];
-          userEmail = value['email'];
-          userInitials = value['name']
-              .split(' ')
-              .map((e) => e[0])
-              .join()
-              .toUpperCase();
-          // Save changes to DB
-        });
+        setState(() => _isLoading = true);
+        _loadUserData(); 
       }
     });
   }
 
   void _logout() async {
-    // Await the result of the dialog to see if the user confirmed.
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (BuildContext dialogContext) {
@@ -97,21 +161,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       },
     );
 
-    // If the user did not confirm (e.g., pressed cancel or tapped outside),
-    // do nothing.
-    if (confirmed != true) {
-      return;
-    }
+    if (confirmed != true) return;
 
-    // If confirmed, proceed with logout logic.
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
 
-    // After an async gap, always check if the widget is still mounted
-    // before interacting with its BuildContext.
     if (!mounted) return;
 
-    // Navigate to the login screen and remove all previous routes.
     Navigator.pushAndRemoveUntil(
       context,
       MaterialPageRoute(builder: (context) => const LoginScreen()),
@@ -138,7 +194,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Header
+                    // 🚀 ADDED BACK BUTTON HERE
+                    GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: const [
+                          Icon(Icons.chevron_left, color: Colors.white, size: 26),
+                          SizedBox(width: 4),
+                          Text(
+                            'Back',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    
+                    const SizedBox(height: 20),
+
                     const Text(
                       'Profile',
                       style: TextStyle(
@@ -159,7 +236,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 32),
 
-                    // User Card
                     Container(
                       padding: const EdgeInsets.all(24),
                       decoration: BoxDecoration(
@@ -175,7 +251,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                       child: Column(
                         children: [
-                          // Avatar
                           Container(
                             width: 80,
                             height: 80,
@@ -184,20 +259,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               borderRadius: BorderRadius.circular(40),
                             ),
                             child: Center(
-                              child: Text(
-                                userInitials,
-                                style: const TextStyle(
-                                  fontSize: 32,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.white,
-                                ),
-                              ),
+                              child: _isLoading 
+                                ? const CircularProgressIndicator(color: Colors.white)
+                                : Text(
+                                    userInitials,
+                                    style: const TextStyle(
+                                      fontSize: 32,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white,
+                                    ),
+                                  ),
                             ),
                           ),
 
                           const SizedBox(height: 16),
 
-                          // User Info
                           Text(
                             userName,
                             style: const TextStyle(
@@ -219,14 +295,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           const SizedBox(height: 20),
 
-                          // Stats Row
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                             children: [
                               Column(
                                 children: [
                                   Text(
-                                    '$sessions',
+                                    _isLoading ? '-' : '$sessions',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -236,37 +311,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Sessions',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                   ),
                                 ],
                               ),
                               Column(
                                 children: [
                                   Text(
-                                    '$avgScore',
-                                    style: const TextStyle(
+                                    _isLoading ? '-' : '$avgScore',
+                                    style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: Colors.amber,
+                                      color: _getScoreColor(avgScore), 
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'Avg Score',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                   ),
                                 ],
                               ),
                               Column(
                                 children: [
                                   Text(
-                                    '$dayStreak',
+                                    _isLoading ? '-' : '$dayStreak',
                                     style: const TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
@@ -276,10 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Day Streak',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
+                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                                   ),
                                 ],
                               ),
@@ -291,7 +357,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 28),
 
-                    //Score Guide 
                     Container(
                       padding: const EdgeInsets.all(20),
                       decoration: BoxDecoration(
@@ -302,10 +367,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          // Score Guide Title with Icon
                           Row(
                             children: [
-                              Icon(Icons.info_outline, color: AppTheme.accentColor, size: 20),
+                              const Icon(Icons.info_outline, color: AppTheme.accentColor, size: 20),
                               const SizedBox(width: 8),
                               const Text(
                                 'Score Guide',
@@ -319,7 +383,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          // Score Items using Emojis
                           _buildScoreGuideItem('95', 'Excellent', '85-100 points', Colors.green, '🎉'),
                           const SizedBox(height: 12),
                           _buildScoreGuideItem('76', 'Good', '70-84 points', Colors.amber, '👍'),
@@ -333,17 +396,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 28),
 
-                    // Language Option
                     _buildOptionTile(
                       icon: Icons.language,
                       title: 'Language',
-                      subtitle: 'English & Filipino',
+                      subtitle: selectedLanguage,
                       onTap: _goToLanguageScreen,
                     ),
 
                     const SizedBox(height: 12),
 
-                    // Edit Profile Option
                     _buildOptionTile(
                       icon: Icons.edit,
                       title: 'Edit Profile',
@@ -353,7 +414,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 12),
 
-                    // Logout Option
                     _buildOptionTile(
                       icon: Icons.logout,
                       title: 'Log Out',
@@ -364,7 +424,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                     const SizedBox(height: 24),
 
-                    // Footer
                     Center(
                       child: Text(
                         'iSpeak v1.0.0',
@@ -386,23 +445,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  //Pastel background, solid circle, emoji icon
-  Widget _buildScoreGuideItem(
-    String score,
-    String label,
-    String range,
-    Color color,
-    String emoji, 
-  ) {
+  Widget _buildScoreGuideItem(String score, String label, String range, Color color, String emoji) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-        color: color.withAlpha((0.12 * 255).round()), // Pastel background tint
+        color: color.withAlpha((0.12 * 255).round()), 
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
-          //Large Colored Number
           SizedBox(
             width: 45,
             child: Text(
@@ -416,7 +467,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
           const SizedBox(width: 8),
           
-          // Middle: Texts
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -441,19 +491,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           
-          // Solid Colored circle with Emoji
           Container(
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color, // Solid color
-
+              color: color, 
               shape: BoxShape.circle,
             ),
             child: Center(
               child: Text(
                 emoji,
-                style: const TextStyle(fontSize: 18), // Emoji sizing
+                style: const TextStyle(fontSize: 18), 
               ),
             ),
           ),
