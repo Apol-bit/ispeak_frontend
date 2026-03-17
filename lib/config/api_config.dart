@@ -1,3 +1,5 @@
 class ApiConfig {
-  static const String baseUrl = "http://172.20.10.2:5000/api";
+  
+  static const String ipAddress = '172.20.10.10'; 
+  static const String baseUrl = 'http://$ipAddress:5000/api';
 }

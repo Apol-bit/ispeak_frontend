@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import 'pages/dashboard_page.dart';
 import 'pages/progress_page.dart';
 import 'pages/result_page.dart';
 import 'pages/practice_page.dart';
 import 'pages/learning_resources_page.dart';
 import 'pages/splash_screen.dart';
+import 'pages/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'transitions/page_transitions.dart';
+import 'config/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -45,15 +49,69 @@ class MyApp extends StatelessWidget {
 class MainPage extends StatefulWidget {
   final String userId;
 
-  const MainPage({super.key, required this.userId}); 
+  const MainPage({super.key, required this.userId});
 
   @override
   State<MainPage> createState() => _MainPageState();
 }
 
-class _MainPageState extends State<MainPage> {
+class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   int _currentIndex = 0;
-  Map<String, dynamic>? _currentSessionData; 
+  Map<String, dynamic>? _currentSessionData;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  // Called every time the app comes back to the foreground
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) {
+      _checkIfStillActive();
+    }
+  }
+
+  // Hits the server and kicks banned users out immediately
+  Future<void> _checkIfStillActive() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/users/${widget.userId}'),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['status'] == 'Banned') {
+          _forceLogout();
+        }
+      }
+    } catch (e) {
+      debugPrint('Status check failed: $e');
+    }
+  }
+
+  void _forceLogout() {
+    if (!mounted) return;
+    Navigator.pushAndRemoveUntil(
+      context,
+      MaterialPageRoute(builder: (context) => const LoginScreen()),
+      (route) => false,
+    );
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Your account has been suspended. Please contact the administrator.'),
+        backgroundColor: Colors.redAccent,
+        duration: Duration(seconds: 4),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -84,49 +142,46 @@ class _MainPageState extends State<MainPage> {
     ];
 
     return Scaffold(
-  extendBody: true,
-  resizeToAvoidBottomInset: false,
-  backgroundColor: const Color(0xFFF5F5F5),
-
-  body: IndexedStack(
-    index: _currentIndex,
-    children: pages,
-  ),
-
-  floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-  floatingActionButton: hideBars
-      ? null
-      : Padding(
-          padding: const EdgeInsets.only(bottom: 10),
-          child: FloatingActionButton(
-            shape: const CircleBorder(),
-            onPressed: () => setState(() => _currentIndex = 1),
-            backgroundColor: const Color(0xFF3F7CF4),
-            elevation: 6,
-            child: const Icon(Icons.mic, size: 36, color: Colors.white),
-          ),
-        ),
-
-  bottomNavigationBar: hideBars
-      ? null
-      : BottomAppBar(
-          shape: const CircularNotchedRectangle(),
-          notchMargin: 8,
-          clipBehavior: Clip.antiAlias,
-          color: Colors.white,
-          elevation: 10,
-          height: 70,
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildNavItem(Icons.home, 'Home', 0),
-              const SizedBox(width: 48),
-              _buildNavItem(Icons.show_chart, 'Progress', 2),
-            ],
-          ),
-        ),
-  );
-}
+      extendBody: true,
+      resizeToAvoidBottomInset: false,
+      backgroundColor: const Color(0xFFF5F5F5),
+      body: IndexedStack(
+        index: _currentIndex,
+        children: pages,
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: hideBars
+          ? null
+          : Padding(
+              padding: const EdgeInsets.only(bottom: 10),
+              child: FloatingActionButton(
+                shape: const CircleBorder(),
+                onPressed: () => setState(() => _currentIndex = 1),
+                backgroundColor: const Color(0xFF3F7CF4),
+                elevation: 6,
+                child: const Icon(Icons.mic, size: 36, color: Colors.white),
+              ),
+            ),
+      bottomNavigationBar: hideBars
+          ? null
+          : BottomAppBar(
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 8,
+              clipBehavior: Clip.antiAlias,
+              color: Colors.white,
+              elevation: 10,
+              height: 70,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(Icons.home, 'Home', 0),
+                  const SizedBox(width: 48),
+                  _buildNavItem(Icons.show_chart, 'Progress', 2),
+                ],
+              ),
+            ),
+    );
+  }
 
   Widget _buildNavItem(IconData icon, String label, int index) {
     bool isSelected = _currentIndex == index;
@@ -138,7 +193,14 @@ class _MainPageState extends State<MainPage> {
         children: [
           Icon(icon, size: 26, color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey),
           const SizedBox(height: 4),
-          Text(label, style: TextStyle(fontSize: 11, color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey, fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal)),
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 11,
+              color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey,
+              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+            ),
+          ),
         ],
       ),
     );

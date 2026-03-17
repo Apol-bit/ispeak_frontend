@@ -7,7 +7,6 @@ import '../services/auth_service.dart';
 import '../main.dart';
 import 'signup_screen.dart';
 
-
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -30,54 +29,61 @@ class _LoginScreenState extends State<LoginScreen> {
     super.dispose();
   }
 
+  // Handles authentication and Ban status
   void _handleLogin() async {
-  final isValid = _formKey.currentState!.validate();
+    final isValid = _formKey.currentState!.validate();
 
-  if (isValid) {
-    setState(() => _isLoading = true);
+    if (isValid) {
+      setState(() => _isLoading = true);
 
-    try {
-      // Call REAL Node.js Backend
-      final result = await AuthService().login(
-        _emailController.text.trim(),
-        _passwordController.text.trim(),
-      );
-
-      setState(() => _isLoading = false);
-
-      if (result['token'] != null) {
-        final String userId = result['user']['id'];
-        
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Login successful!')),
-          ); 
-          Navigator.pushAndRemoveUntil(
-            context,
-            MaterialPageRoute(
-              builder: (context) => MainPage(userId: userId),
-            ),
-            (route) => false,
-          );
-        }
-
-      } else {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text(result['message'] ?? 'Login failed')),
-          );
-        }
-      }
-    } catch (e) {
-      setState(() => _isLoading = false);
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not connect to server. Check your IP/Wi-Fi.')),
+      try {
+        // Call Node.js Backend via AuthService
+        final result = await AuthService().login(
+          _emailController.text.trim(),
+          _passwordController.text.trim(),
         );
+
+        setState(() => _isLoading = false);
+
+        // Successful Login (Status is Active)
+        if (result['token'] != null) {
+          final String userId = result['user']['id'];
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Login successful!')),
+            ); 
+            Navigator.pushAndRemoveUntil(
+              context,
+              MaterialPageRoute(
+                builder: (context) => MainPage(userId: userId),
+              ),
+              (route) => false,
+            );
+          }
+        } 
+        // Error or Banned Status (403 or 400)
+        else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(result['message'] ?? 'Login failed'),
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+              ),
+            );
+          }
+        }
+      } catch (e) {
+        setState(() => _isLoading = false);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Could not connect to server. Check your IP/Wi-Fi.')),
+          );
+        }
       }
     }
   }
-}
 
   void _goToSignUp() {
     Navigator.push(
@@ -145,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withAlpha((0.08 * 255).round()),
+                        color: Colors.black.withOpacity(0.08),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),

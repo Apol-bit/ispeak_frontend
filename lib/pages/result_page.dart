@@ -14,6 +14,7 @@ class ResultPage extends StatelessWidget {
   });
 
   Color _getScoreColor(num score) {
+    if (score == 0) return Colors.grey; // Grey for pending AI data
     if (score >= 90) return const Color(0xFF3FBD7A); 
     if (score >= 75) return const Color(0xFF3F7CF4); 
     if (score >= 60) return const Color(0xFFF5A623); 
@@ -21,6 +22,7 @@ class ResultPage extends StatelessWidget {
   }
 
   String _getScoreLabel(num score) {
+    if (score == 0) return 'Pending AI Analysis ⏳';
     if (score >= 90) return 'Excellent 🎉';
     if (score >= 75) return 'Good 👍';
     if (score >= 60) return 'Fair 😐';
@@ -31,20 +33,13 @@ class ResultPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = sessionData ?? {};
 
-    // Map exact variables from MongoDB Schema
-    final int wpmDisplay = (data['wpmScore'] ?? 126).toInt();
-    final int fillerDisplay = (data['fillerWordCount'] ?? 1).toInt();
-    final int energyDisplay = (data['energyScore'] ?? 72).toInt();
+    final int wpmDisplay = (data['wpmScore'] ?? 0).toInt();
+    final int fillerDisplay = (data['fillerWordCount'] ?? 0).toInt();
+    final int overallScore = (data['overallScore'] ?? 0).toInt();
+    final int paceScore = (data['paceScore'] ?? 0).toInt();
+    final int clarityScore = (data['clarityScore'] ?? 0).toInt();
+    final int energyScore = (data['energyScore'] ?? 0).toInt();
 
-    // Calculate a 1-100 score for WPM (Assuming ~150 is optimal)
-    double wpmScoreVal = (data['wpmScore'] != null) ? (data['wpmScore'] / 2.0).clamp(0.0, 100.0) : 85.0;
-
-    // TODO: Implement real clarity score calculation
-    // double clarityVal = data['clarityScore'] != null ? data['clarityScore'].toDouble() : 0.0;
-    // final int overallScore = ((wpmScoreVal + energyDisplay + clarityVal) / 3).round();
-    
-    // Overall average
-    final int overallScore = ((wpmScoreVal + energyDisplay + 90.0) / 3).round();
     final Color overallColor = _getScoreColor(overallScore);
 
     return Scaffold(
@@ -115,8 +110,8 @@ class ResultPage extends StatelessWidget {
                     icon: Icons.volume_up_outlined,
                     title: 'Pace',
                     subtitle: '$wpmDisplay words per minute',
-                    score: wpmScoreVal.toInt(),
-                    feedback: 'Good pacing. Try to maintain consistency throughout.',
+                    score: paceScore,
+                    feedback: paceScore == 0 ? 'Awaiting AI Analysis...' : 'Good pacing. Try to maintain consistency.',
                   ),
                   const SizedBox(height: 16),
 
@@ -124,8 +119,8 @@ class ResultPage extends StatelessWidget {
                     icon: Icons.chat_bubble_outline,
                     title: 'Clarity',
                     subtitle: '$fillerDisplay filler words detected',
-                    score: fillerDisplay <= 3 ? 95 : 70, // Logic: Fewer fillers = higher score
-                    feedback: 'Minimal filler words. Watch for "um" and "uh".',
+                    score: clarityScore,
+                    feedback: clarityScore == 0 ? 'Awaiting AI Analysis...' : 'Minimal filler words. Keep it up.',
                   ),
                   const SizedBox(height: 16),
 
@@ -133,8 +128,8 @@ class ResultPage extends StatelessWidget {
                     icon: Icons.bolt,
                     title: 'Energy',
                     subtitle: 'Vocal projection and emotion',
-                    score: energyDisplay,
-                    feedback: 'Good energy level.',
+                    score: energyScore,
+                    feedback: energyScore == 0 ? 'Awaiting AI Analysis...' : 'Good energy level.',
                   ),
 
                   const SizedBox(height: 32),
@@ -149,7 +144,6 @@ class ResultPage extends StatelessWidget {
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         elevation: 0,
                       ),
-                      // If onPracticeAgain is null, act like "Back" just to prevent crash
                       onPressed: onPracticeAgain ?? onBackToHome, 
                       child: const Text('Practice Again', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                     ),
@@ -231,7 +225,7 @@ class ResultPage extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              const Icon(Icons.check, size: 14, color: Colors.grey),
+              Icon(score == 0 ? Icons.hourglass_empty : Icons.check, size: 14, color: Colors.grey),
               const SizedBox(width: 6),
               Expanded(child: Text(feedback, style: const TextStyle(color: Colors.grey, fontSize: 12))),
             ],

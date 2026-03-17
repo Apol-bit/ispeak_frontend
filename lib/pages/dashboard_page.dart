@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'learning_resources_page.dart';
+import '../config/api_config.dart'; 
 import 'profile_screen.dart';
 import 'result_page.dart';
 
@@ -26,7 +27,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
   Map<String, dynamic> _userStats = {
     'totalSessions': 0,
     'avgScore': 0,
-    'daysActive': 0, 
+    'dayStreak': 0, 
   };
   List<dynamic> _recentSessionsList = [];
 
@@ -38,6 +39,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
   Color _getScoreColor(dynamic scoreValue) {
     final double score = double.tryParse(scoreValue.toString()) ?? 0;
+    if (score == 0) return Colors.grey; 
     if (score >= 90) return const Color(0xFF3FBD7A); 
     if (score >= 75) return const Color(0xFF3F7CF4); 
     if (score >= 60) return const Color(0xFFF5A623); 
@@ -46,32 +48,53 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
   Future<void> _fetchDashboardData() async {
     try {
-      // Use your local IP if testing locally!
-      final statsRes = await http.get(Uri.parse('http://172.20.10.2:5000/api/stats/${widget.userId}'));
-      final historyRes = await http.get(Uri.parse('http://172.20.10.2:5000/api/sessions/${widget.userId}'));
+      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'));
+      final historyRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}'));
 
       if (statsRes.statusCode == 200) {
         final data = jsonDecode(statsRes.body);
         final overallStats = data['overallStats'] ?? {};
         final sessions = data['sessions'] as List<dynamic>? ?? [];
 
-        // Calculate unique days active
-        Set<String> uniqueDays = {};
+        // --- TRUE CONTINUOUS STREAK ALGORITHM ---
+        Set<DateTime> uniqueDays = {};
         for (var s in sessions) {
-           if (s['createdAt'] != null) {
-             uniqueDays.add(s['createdAt'].substring(0, 10));
-           }
+          if (s['createdAt'] != null) {
+            DateTime d = DateTime.parse(s['createdAt']).toLocal();
+            uniqueDays.add(DateTime(d.year, d.month, d.day)); 
+          }
         }
 
-        // Calculate a simulated average score based on WPM and Energy
-        double avgWpm = overallStats['avgWPM'] != null ? (overallStats['avgWPM'] / 2.0).clamp(0.0, 100.0) : 85.0;
-        double avgEnergy = overallStats['avgEnergy'] != null ? overallStats['avgEnergy'].toDouble() : 80.0;
-        int overallScore = ((avgWpm + avgEnergy + 90.0) / 3).round();
+        List<DateTime> sortedDays = uniqueDays.toList()..sort((a, b) => b.compareTo(a));
+        DateTime today = DateTime.now();
+        today = DateTime(today.year, today.month, today.day);
+
+        int currentStreak = 0;
+
+        if (sortedDays.isNotEmpty) {
+          DateTime lastActive = sortedDays.first;
+          
+          if (today.difference(lastActive).inDays <= 1) {
+            currentStreak = 1;
+            DateTime expectedDay = lastActive.subtract(const Duration(days: 1));
+
+            for (int i = 1; i < sortedDays.length; i++) {
+              if (sortedDays[i] == expectedDay) {
+                currentStreak++;
+                expectedDay = expectedDay.subtract(const Duration(days: 1));
+              } else {
+                break; 
+              }
+            }
+          }
+        }
+
+        int overallScore = (overallStats['avgScore'] ?? 0).toInt();
 
         _userStats = {
           'totalSessions': overallStats['totalSessions'] ?? 0,
           'avgScore': overallScore,
-          'daysActive': uniqueDays.length,
+          'dayStreak': currentStreak, 
         };
       }
 
@@ -91,7 +114,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
     return _isLoading 
       ? const Center(child: CircularProgressIndicator()) 
       : RefreshIndicator(
-          onRefresh: _fetchDashboardData, // Swipe down to refresh manually if needed
+          onRefresh: _fetchDashboardData,
           child: SingleChildScrollView(
             physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
@@ -172,8 +195,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 ),
                 const _VerticalDivider(),
                 _StatItem(
-                  value: (_userStats['daysActive'] ?? 0).toString(), 
-                  label: 'Days Active',
+                  value: (_userStats['dayStreak'] ?? 0).toString(), 
+                  label: 'Day Streak',
                   valueColor: const Color(0xFF3F7CF4),
                 ),
               ],
@@ -263,19 +286,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
             String rawDate = session['createdAt'] ?? '';
             String shortDate = rawDate.isNotEmpty ? rawDate.substring(0, 10) : 'Unknown Date';
             
-            // Calculate a score for the card
-            double wpmVal = session['wpmScore'] != null ? (session['wpmScore'] / 2.0).clamp(0.0, 100.0) : 85.0;
-            double nrgVal = session['energyScore'] != null ? session['energyScore'].toDouble() : 80.0;
-
-            // TODO: Implement clarity score calculation
-            // double clarityVal = session['clarityScore'] != null ? session['clarityScore'].toDouble() : 0.0;
-            //int score = ((wpmVal + nrgVal + clarityVal) / 3).round();
-
-            int score = ((wpmVal + nrgVal + 90.0) / 3).round(); 
+            int score = (session['overallScore'] ?? 0).toInt();
 
             return GestureDetector(
               onTap: () {
-                // AUTO-REFRESH MAGIC: .then() triggers when you return from the ResultPage
                 Navigator.push(
                   context,
                   MaterialPageRoute(builder: (context) => ResultPage(
@@ -291,8 +305,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
               child: _SessionCard(
                 date: shortDate,
                 score: score.toString(),
-                pace: '${session['wpmScore'] ?? 0} WPM',
-                clarity: '${session['fillerWordCount'] ?? 0} Fillers',
+                pace: '${session['paceScore'] ?? 0}%', 
+                clarity: '${session['clarityScore'] ?? 0}%',
                 energy: '${session['energyScore'] ?? 0}%',
               ),
             ); 
@@ -338,6 +352,7 @@ class _SessionCard extends StatelessWidget {
 
   Color get _scoreColor {
     final s = int.tryParse(score) ?? 0;
+    if (s == 0) return Colors.grey;
     if (s >= 90) return const Color(0xFF3FBD7A);
     if (s >= 75) return const Color(0xFF3F7CF4);
     if (s >= 60) return const Color(0xFFF5A623);
@@ -368,7 +383,7 @@ class _SessionCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _Metric(label: 'Pace', value: pace),
-              _Metric(label: 'Fillers', value: clarity), 
+              _Metric(label: 'Clarity', value: clarity), 
               _Metric(label: 'Energy', value: energy),
             ],
           ),

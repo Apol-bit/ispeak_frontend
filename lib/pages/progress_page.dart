@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:shared_preferences/shared_preferences.dart';
+import '../config/api_config.dart'; 
 import 'result_page.dart'; 
 
 class ProgressPage extends StatefulWidget {
@@ -15,7 +15,7 @@ class ProgressPage extends StatefulWidget {
 class _ProgressPageState extends State<ProgressPage> {
   bool _isLoading = true;
   List<dynamic> _realSessions = [];
-  Set<int> _activeDays = {}; // Tracks which days have sessions
+  Set<int> _activeDays = {}; 
 
   bool _isEnglishSelected = true;
   bool _isBarChart = true;
@@ -59,7 +59,7 @@ class _ProgressPageState extends State<ProgressPage> {
 
   Future<void> _fetchUserProgress() async {
     try {
-      final url = Uri.parse('http://172.20.10.2:5000/api/stats/${widget.userId}');
+      final url = Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
@@ -73,48 +73,60 @@ class _ProgressPageState extends State<ProgressPage> {
         
         Map<int, List<double>> dayScores = {};
         Map<int, List<double>> dayPace = {};
+        Map<int, List<double>> dayClarity = {};
         Map<int, List<double>> dayEnergy = {};
 
-        double totalPace = 0, totalClarity = 0, totalEnergy = 0;
+        double totalPace = 0, totalClarity = 0, totalEnergy = 0, totalOverall = 0;
         Set<int> newActiveDays = {};
+
+        // CURRENT WEEK LOGIC FOR CHARTS AND BUBBLES
+        DateTime now = DateTime.now();
+        DateTime startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
 
         for (var session in sessions) {
           if (session['createdAt'] != null) {
             DateTime date = DateTime.parse(session['createdAt']).toLocal();
-            int weekdayIndex = date.weekday - 1; 
-            newActiveDays.add(date.weekday);
 
-            // Calculate current metrics
-            double pace = (session['wpmScore'] != null) ? (session['wpmScore'] / 2.0).clamp(0.0, 100.0) : 85.0;
-            double clarity = 90.0; // Dummy
-            double energy = (session['energyScore'] ?? 80).toDouble();
-            double overall = (pace + clarity + energy) / 3;
+            double pace = (session['paceScore'] ?? 0).toDouble();
+            double clarity = (session['clarityScore'] ?? 0).toDouble();
+            double energy = (session['energyScore'] ?? 0).toDouble();
+            double overall = (session['overallScore'] ?? 0).toDouble();
 
+            // ALL-TIME SCORES
             totalPace += pace;
             totalClarity += clarity;
             totalEnergy += energy;
+            totalOverall += overall;
 
-            // Group by day for the charts
-            dayScores.putIfAbsent(weekdayIndex, () => []).add(overall);
-            dayPace.putIfAbsent(weekdayIndex, () => []).add(pace);
-            dayEnergy.putIfAbsent(weekdayIndex, () => []).add(energy);
+            // THIS WEEK ONLY SCORES (For the charts and checkmarks)
+            if (date.isAfter(startOfWeek) || date.isAtSameMomentAs(startOfWeek)) {
+              int weekdayIndex = date.weekday - 1; 
+              newActiveDays.add(date.weekday);
+
+              dayScores.putIfAbsent(weekdayIndex, () => []).add(overall);
+              dayPace.putIfAbsent(weekdayIndex, () => []).add(pace);
+              dayClarity.putIfAbsent(weekdayIndex, () => []).add(clarity);
+              dayEnergy.putIfAbsent(weekdayIndex, () => []).add(energy);
+            }
           }
         }
 
-        // Calculate averages for each day that has sessions
+        // Calculate weekly averages
         dayScores.forEach((day, scores) {
           weeklyAverages[day] = scores.reduce((a, b) => a + b) / scores.length;
           weeklyPace[day] = dayPace[day]!.reduce((a, b) => a + b) / dayPace[day]!.length;
-          weeklyClarity[day] = 90.0; // Keep dummy 90 constant for now
+          weeklyClarity[day] = dayClarity[day]!.reduce((a, b) => a + b) / dayClarity[day]!.length;
           weeklyEnergy[day] = dayEnergy[day]!.reduce((a, b) => a + b) / dayEnergy[day]!.length;
         });
 
+        // Calculate overall all-time stats
         if (sessions.isNotEmpty) {
           int avgPace = (totalPace / sessions.length).round();
           int avgClarity = (totalClarity / sessions.length).round();
           int avgEnergy = (totalEnergy / sessions.length).round();
+          int avgOverall = (totalOverall / sessions.length).round();
 
-          _englishOverall = ((avgPace + avgClarity + avgEnergy) / 3).round();
+          _englishOverall = avgOverall;
           _englishSkills = [
             {'label': 'Pace', 'score': avgPace, 'value': avgPace / 100},
             {'label': 'Clarity', 'score': avgClarity, 'value': avgClarity / 100},
@@ -137,12 +149,13 @@ class _ProgressPageState extends State<ProgressPage> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print("Error fetching progress: $e");
+      debugPrint("Error fetching progress: $e");
       setState(() => _isLoading = false);
     }
   }
 
   Color _barColor(double score) {
+    if (score == 0) return Colors.grey.shade400; 
     if (score >= 85) return const Color(0xFF4CAF50);
     if (score >= 70) return const Color(0xFFFFC107);
     if (score >= 50) return const Color(0xFFFF9800);
@@ -172,21 +185,18 @@ class _ProgressPageState extends State<ProgressPage> {
       backgroundColor: const Color(0xFFF8F9FB),
       body: GestureDetector(
         onTap: () => setState(() => _tooltipDayIndex = null),
-        child: Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 500),
-            child: RefreshIndicator(
-              onRefresh: _fetchUserProgress,
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.only(bottom: 120),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Header 
-                    Container(
-                      width: double.infinity,
-                      decoration: BoxDecoration(
+        child: RefreshIndicator(
+          onRefresh: _fetchUserProgress,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.only(bottom: 120),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Header 
+                Container(
+                  width: double.infinity,
+                  decoration: BoxDecoration(
                         gradient: LinearGradient(
                           colors: [accentColor, accentColor.withOpacity(0.8)],
                           begin: Alignment.topLeft,
@@ -219,11 +229,11 @@ class _ProgressPageState extends State<ProgressPage> {
                           children: [
                             const Text('Performance Trends', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                             const SizedBox(height: 20),
-                            _perfRow('Pace', 'Steady improvement in rate', 0.72, '+8%', accentColor),
+                            _perfRow('Pace', 'Steady improvement in rate', 0.0, '+0%', accentColor), 
                             const SizedBox(height: 18),
-                            _perfRow('Clarity', 'Clear and articulate delivery', 0.85, '+12%', accentColor),
+                            _perfRow('Clarity', 'Clear and articulate delivery', 0.0, '+0%', accentColor),
                             const SizedBox(height: 18),
-                            _perfRow('Energy', 'Consistently high energy', 0.8, '+15%', accentColor),
+                            _perfRow('Energy', 'Consistently high energy', 0.0, '+0%', accentColor),
                           ],
                         ),
                       ),
@@ -235,7 +245,7 @@ class _ProgressPageState extends State<ProgressPage> {
                     _buildDailyChart(accentColor),
                     const SizedBox(height: 20),
 
-                    // ── Dynamic Session History ──
+                    // Dynamic Session History
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Column(
@@ -253,14 +263,7 @@ class _ProgressPageState extends State<ProgressPage> {
                               int index = entry.key;
                               var session = entry.value;
                               
-                              double wpmVal = session['wpmScore'] != null ? (session['wpmScore'] / 2.0).clamp(0.0, 100.0) : 85.0;
-                              double nrgVal = session['energyScore'] != null ? session['energyScore'].toDouble() : 80.0;
-
-                              // TODO: Implement clarity score calculation
-                              // double clarityVal = session['clarityScore'] != null ? session['clarityScore'].toDouble() : 0.0;
-                              //int score = ((wpmVal + nrgVal + clarityVal) / 3).round();
-                              int score = ((wpmVal + nrgVal + 90.0) / 3).round(); 
-
+                              int score = (session['overallScore'] ?? 0).toInt();
                               String dateStr = _formatDate(session['createdAt']);
 
                               return Padding(
@@ -271,7 +274,6 @@ class _ProgressPageState extends State<ProgressPage> {
                                   '$score', 
                                   accentColor,
                                   () {
-                                    // Make card clickable and auto-refresh on return
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(builder: (context) => ResultPage(
@@ -291,9 +293,7 @@ class _ProgressPageState extends State<ProgressPage> {
               ),
             ),
           ),
-        ),
-      ),
-    );
+        );
   }
 
   BoxDecoration _cardDecoration() {
@@ -323,7 +323,6 @@ class _ProgressPageState extends State<ProgressPage> {
             Row(
               children: List.generate(7, (index) {
                 const labels = ['M', 'T', 'W', 'T', 'F', 'ST', 'S'];
-                // Checks if this day of the week exists in our activeDays Set
                 final bool done = _activeDays.contains(index + 1); 
                 return Expanded(
                   child: Column(
@@ -358,7 +357,14 @@ class _ProgressPageState extends State<ProgressPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Skills Breakdown', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                const Expanded(
+                  child: Text(
+                    'Skills Breakdown', 
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(25)),
                   padding: const EdgeInsets.all(4),
@@ -444,7 +450,14 @@ class _ProgressPageState extends State<ProgressPage> {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text('Performance Per Day', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                const Expanded(
+                  child: Text(
+                    'Performance Per Day', 
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(25)),
                   padding: const EdgeInsets.all(4),
@@ -488,7 +501,7 @@ class _ProgressPageState extends State<ProgressPage> {
                       _legendItem(const Color(0xFFFFC107), 'Good (70-84)'),
                       _legendItem(const Color(0xFFFF9800), 'Fair (50-69)'),
                       _legendItem(const Color(0xFFEF4444), 'Needs Work (<50)'),
-                      _legendItem(Colors.grey.shade200, 'No Session'),
+                      _legendItem(Colors.grey.shade400, 'Pending Data'),
                     ],
                   )
                 : Wrap(
@@ -526,7 +539,7 @@ class _ProgressPageState extends State<ProgressPage> {
       message: message,
       preferBelow: false,
       verticalOffset: 14,
-      triggerMode: TooltipTriggerMode.tap, // 👈 ADD THIS LINE HERE!
+      triggerMode: TooltipTriggerMode.tap, 
       decoration: BoxDecoration(
         color: const Color(0xFF1E1E2E),
         borderRadius: BorderRadius.circular(10),
@@ -571,7 +584,7 @@ class _ProgressPageState extends State<ProgressPage> {
                       message: hasSession ? '${_dayLabels[i]}\nScore: ${score.toStringAsFixed(1)}' : '${_dayLabels[i]}\nNo Session',
                       child: AnimatedContainer(
                         duration: const Duration(milliseconds: 500),
-                        height: hasSession ? (score / 100) * 140 : 10,
+                        height: hasSession ? ((score == 0 ? 5 : score) / 100) * 140 : 10,
                         margin: const EdgeInsets.symmetric(horizontal: 6),
                         decoration: BoxDecoration(
                           color: hasSession ? _barColor(score) : Colors.grey.shade200,
@@ -763,7 +776,7 @@ class _ProgressPageState extends State<ProgressPage> {
       onTap: onTap,
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 250),
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8), 
         decoration: BoxDecoration(
           color: active ? activeColor : Colors.transparent,
           borderRadius: BorderRadius.circular(20),

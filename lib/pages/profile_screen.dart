@@ -17,7 +17,9 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  String userName = "Loading...";
+  String firstName = "";
+  String lastName = "";
+  String username = "Loading...";
   String userEmail = "Loading...";
   String userInitials = "";
   String selectedLanguage = "English";
@@ -35,10 +37,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Color _getScoreColor(int score) {
-    if (score >= 85) return const Color(0xFF4CAF50); // Green
-    if (score >= 70) return const Color(0xFFFFC107); // Yellow
-    if (score >= 50) return const Color(0xFFFF9800); // Orange
-    return const Color(0xFFEF4444); // Red
+    if (score == 0) return Colors.grey; 
+    if (score >= 85) return const Color(0xFF4CAF50); 
+    if (score >= 70) return const Color(0xFFFFC107); 
+    if (score >= 50) return const Color(0xFFFF9800); 
+    return const Color(0xFFEF4444); 
   }
 
   Future<void> _loadUserData() async {
@@ -49,49 +52,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (userRes.statusCode == 200) {
         final userData = jsonDecode(userRes.body);
         
-        userName = userData['name'] ?? userData['username'] ?? "Unknown User";
+        firstName = userData['firstName'] ?? "";
+        lastName = userData['lastName'] ?? "";
+        username = userData['username'] ?? "Unknown User";
         userEmail = userData['email'] ?? "No email provided";
         
-        if (userName != "Unknown User" && userName.isNotEmpty) {
-          List<String> names = userName.trim().split(' ');
-          if (names.length > 1) {
-            userInitials = '${names[0][0]}${names[1][0]}'.toUpperCase();
-          } else {
-            userInitials = names[0][0].toUpperCase();
-          }
+        if (firstName.isNotEmpty && lastName.isNotEmpty) {
+          userInitials = '${firstName[0]}${lastName[0]}'.toUpperCase();
+        } else if (username != "Unknown User") {
+          userInitials = username[0].toUpperCase();
         } else {
           userInitials = "?";
         }
       } else {
-        userName = "User Not Found";
+        username = "User Not Found";
         userEmail = "Server returned ${userRes.statusCode}";
         userInitials = "!";
       }
 
-      // --- STATS DATA FIX ---
       if (statsRes.statusCode == 200) {
         final statsData = jsonDecode(statsRes.body);
         final overallStats = statsData['overallStats'] ?? {};
         final sessionsList = statsData['sessions'] as List<dynamic>? ?? [];
         
         sessions = overallStats['totalSessions'] ?? 0;
-        
-        double avgWpm = overallStats['avgWPM'] != null ? (overallStats['avgWPM'] / 2.0).clamp(0.0, 100.0) : 85.0;
-        double avgEnergy = overallStats['avgEnergy'] != null ? overallStats['avgEnergy'].toDouble() : 80.0;
-       
-        // TODO: Implement real clarity score calculation
-        // double avgClarity = overallStats['avgClarity'] != null ? overallStats['avgClarity'].toDouble() : 0.0;
-        // avgScore = ((avgWpm + avgEnergy + avgClarity) / 3).round();
+        avgScore = (overallStats['avgScore'] ?? 0).toInt();
 
-        avgScore = ((avgWpm + avgEnergy + 90.0) / 3).round();
-
-        Set<String> uniqueDays = {};
+        // --- TRUE CONTINUOUS STREAK ALGORITHM ---
+        Set<DateTime> uniqueDays = {};
         for (var s in sessionsList) {
-           if (s['createdAt'] != null) {
-             uniqueDays.add(s['createdAt'].substring(0, 10));
-           }
+          if (s['createdAt'] != null) {
+            DateTime d = DateTime.parse(s['createdAt']).toLocal();
+            uniqueDays.add(DateTime(d.year, d.month, d.day)); 
+          }
         }
-        dayStreak = uniqueDays.length; 
+
+        List<DateTime> sortedDays = uniqueDays.toList()..sort((a, b) => b.compareTo(a));
+        DateTime today = DateTime.now();
+        today = DateTime(today.year, today.month, today.day);
+
+        dayStreak = 0;
+
+        if (sortedDays.isNotEmpty) {
+          DateTime lastActive = sortedDays.first;
+          
+          if (today.difference(lastActive).inDays <= 1) {
+            dayStreak = 1;
+            DateTime expectedDay = lastActive.subtract(const Duration(days: 1));
+
+            for (int i = 1; i < sortedDays.length; i++) {
+              if (sortedDays[i] == expectedDay) {
+                dayStreak++;
+                expectedDay = expectedDay.subtract(const Duration(days: 1));
+              } else {
+                break; 
+              }
+            }
+          }
+        }
       }
 
       setState(() {
@@ -102,7 +120,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint("Error fetching profile data: $e");
       setState(() {
         _isLoading = false;
-        userName = "Network Error";
+        username = "Network Error";
         userEmail = "Check connection";
         userInitials = "!";
       });
@@ -128,7 +146,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       MaterialPageRoute(
         builder: (context) => EditProfileScreen(
           userId: widget.userId,
-          userName: userName,
+          firstName: firstName,
+          lastName: lastName,
+          username: username,
           userEmail: userEmail,
         ),
       ),
@@ -194,7 +214,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // 🚀 ADDED BACK BUTTON HERE
                     GestureDetector(
                       onTap: () => Navigator.pop(context),
                       child: Row(
@@ -275,7 +294,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 16),
 
                           Text(
-                            userName,
+                            username,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -286,10 +305,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           const SizedBox(height: 4),
 
                           Text(
-                            userEmail,
+                            _isLoading ? '-' : '$firstName $lastName',
                             style: TextStyle(
                               fontSize: 13,
-                              color: Colors.grey[600],
+                              color: Colors.grey[700],
+                            ),
+                          ),
+
+                          const SizedBox(height: 4),
+
+                          Text(
+                            userEmail,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey[500],
                             ),
                           ),
 
@@ -390,6 +419,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           _buildScoreGuideItem('58', 'Fair', '50-69 points', Colors.orange, '💪'),
                           const SizedBox(height: 12),
                           _buildScoreGuideItem('42', 'Needs Work', '0-49 points', Colors.red, '📈'),
+                          const SizedBox(height: 12),
                         ],
                       ),
                     ),

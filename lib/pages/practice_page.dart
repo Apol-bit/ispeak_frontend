@@ -1,5 +1,3 @@
-// ignore_for_file: curly_braces_in_flow_control_structures
-
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:io';
@@ -13,7 +11,6 @@ enum PracticeState { ready, recording, paused }
 
 class PracticePage extends StatefulWidget {
   final String userId;
-  // ✅ CHANGED: Now passes the JSON map to main.dart
   final Function(Map<String, dynamic>)? onFinish; 
 
   const PracticePage({super.key, required this.userId, this.onFinish});
@@ -26,7 +23,10 @@ class _PracticePageState extends State<PracticePage> {
   PracticeState _state = PracticeState.ready;
   Timer? _timer;
   int _seconds = 0;
-  bool _isUploading = false; // ✅ Added loading state
+  bool _isUploading = false; 
+  
+  // The Language State is Back!
+  bool _isEnglish = true; 
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
@@ -95,27 +95,117 @@ class _PracticePageState extends State<PracticePage> {
       color: const Color(0xFFF0F0F3),
       child: SafeArea(
         bottom: false,
-        child: Padding(
+        child: SingleChildScrollView( // Scroll fix preserved!
+          physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
           child: Column(
             children: [
               const SizedBox(height: 10),
-              const Text('Practice Session', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text('Record your speech to get instant feedback', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              
+              // UI RESTORED: Header Row with Title and EN/FIL Toggle
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: const [
+                        Text('Practice Session', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                        SizedBox(height: 8),
+                        Text('Record your speech to get instant feedback', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                  _buildLanguageToggle(),
+                ],
+              ),
+              
               const SizedBox(height: 30),
+
+              // UI RESTORED: Dynamic Language Indicator
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(
+                    Icons.language, 
+                    size: 16, 
+                    color: _isEnglish ? const Color(0xFF3F7CF4) : const Color(0xFFF5A623)
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Practicing in ${_isEnglish ? "English" : "Filipino"}',
+                    style: TextStyle(
+                      color: _isEnglish ? const Color(0xFF3F7CF4) : const Color(0xFFF5A623),
+                      fontWeight: FontWeight.w600,
+                      fontSize: 14,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
 
               _recordCard(),
 
-              const Spacer(),
+              const SizedBox(height: 40),
 
               if (_state == PracticeState.paused && _seconds >= 5) 
                 _finishButton(),
                 
-              const SizedBox(height: 120),
+              const SizedBox(height: 140), 
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildLanguageToggle() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade200,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      padding: const EdgeInsets.all(4),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          GestureDetector(
+            onTap: _state == PracticeState.recording ? null : () => setState(() => _isEnglish = true),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _isEnglish ? const Color(0xFF3F7CF4) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: _isEnglish 
+                    ? [BoxShadow(color: const Color(0xFF3F7CF4).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                    : [],
+              ),
+              child: Text(
+                'EN', 
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _isEnglish ? Colors.white : Colors.grey.shade600),
+              ),
+            ),
+          ),
+          GestureDetector(
+            onTap: _state == PracticeState.recording ? null : () => setState(() => _isEnglish = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: !_isEnglish ? const Color(0xFFF5A623) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: !_isEnglish 
+                    ? [BoxShadow(color: const Color(0xFFF5A623).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                    : [],
+              ),
+              child: Text(
+                'FIL', 
+                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: !_isEnglish ? Colors.white : Colors.grey.shade600),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -170,32 +260,28 @@ class _PracticePageState extends State<PracticePage> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           elevation: 4,
         ),
-        // ✅ THE REAL BACKEND UPLOAD LOGIC
         onPressed: _isUploading ? null : () async {
           _timer?.cancel();
-          setState(() => _isUploading = true); // Show loading spinner
+          setState(() => _isUploading = true); 
           
           try {
             final finalPath = await _audioRecorder.stop();
             
             if (finalPath != null) {
-              // 1. Prepare the HTTP Multipart Request
-              // Change '/upload' to whatever your actual Node.js route is!
-              // Updated to match your server.js route perfectly!
               var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
               
-              // 2. Attach the user ID and the audio file
               request.fields['userId'] = widget.userId;
+              // Safe Local Data pass!
+              request.fields['language'] = _isEnglish ? 'English' : 'Filipino'; 
+              
               request.files.add(await http.MultipartFile.fromPath('audio', finalPath));
 
-              // 3. Send to Node.js
               var streamedResponse = await request.send();
               var response = await http.Response.fromStream(streamedResponse);
 
-              // 4. Handle the result
               if (response.statusCode == 200 || response.statusCode == 201) {
                 final resultData = jsonDecode(response.body);
-                widget.onFinish?.call(resultData); // Pass data to Result Page!
+                widget.onFinish?.call(resultData); 
               } else {
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Failed: ${response.body}')));

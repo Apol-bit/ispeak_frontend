@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart'; // Added API config
+import '../config/api_config.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
@@ -16,7 +16,9 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _nameController = TextEditingController();
+  final _firstNameController = TextEditingController();
+  final _lastNameController = TextEditingController();
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -29,14 +31,16 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   void dispose() {
-    _nameController.dispose();
+    _firstNameController.dispose();
+    _lastNameController.dispose();
+    _usernameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     super.dispose();
   }
 
-  // 🚀 THE NEW FULL-STACK SIGNUP LOGIC
+  // FULL-STACK SIGNUP LOGIC
   Future<void> _handleSignUp() async {
     if (_formKey.currentState!.validate()) {
       if (!_agreeToTerms) {
@@ -56,7 +60,9 @@ class _SignupScreenState extends State<SignupScreen> {
           Uri.parse('${ApiConfig.baseUrl}/signup'),
           headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
-            'name': _nameController.text.trim(),
+            'firstName': _firstNameController.text.trim(),
+            'lastName': _lastNameController.text.trim(),
+            'username': _usernameController.text.trim(),
             'email': _emailController.text.trim(),
             'password': _passwordController.text,
           }),
@@ -65,11 +71,10 @@ class _SignupScreenState extends State<SignupScreen> {
         final data = jsonDecode(response.body);
 
         if (response.statusCode == 201) {
-          // Success!
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome, ${_nameController.text}! Account created.'),
+              content: Text('Welcome, ${_usernameController.text}! Account created.'),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
@@ -77,12 +82,10 @@ class _SignupScreenState extends State<SignupScreen> {
           await Future.delayed(const Duration(milliseconds: 500));
           if (!mounted) return;
 
-          // Send them to login screen
           Navigator.of(context).pushReplacement(
             ModernPageRoute(page: const LoginScreen()), 
           );
         } else {
-          // Server returned an error (like "Email already in use")
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -92,7 +95,6 @@ class _SignupScreenState extends State<SignupScreen> {
           );
         }
       } catch (e) {
-        // Network error (Server is off, etc.)
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -193,140 +195,104 @@ class _SignupScreenState extends State<SignupScreen> {
 
                         const SizedBox(height: 24),
 
-                        const Text(
-                          'Full Name',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('First Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                  const SizedBox(height: 8),
+                                  CustomTextField(
+                                    controller: _firstNameController,
+                                    hintText: 'First Name',
+                                    validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text('Last Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                  const SizedBox(height: 8),
+                                  CustomTextField(
+                                    controller: _lastNameController,
+                                    hintText: 'Last Name',
+                                    validator: (value) => value == null || value.isEmpty ? 'Required' : null,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
                         ),
 
-                        const SizedBox(height: 8),
+                        const SizedBox(height: 20),
 
+                        const Text('Username', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                        const SizedBox(height: 8),
                         CustomTextField(
-                          controller: _nameController,
-                          hintText: 'Enter your name',
-                          keyboardType: TextInputType.name,
+                          controller: _usernameController,
+                          hintText: 'Choose a username',
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your name';
-                            }
-                            if (value.length < 2) {
-                              return 'Name must be at least 2 characters';
-                            }
+                            if (value == null || value.isEmpty) return 'Please enter a username';
+                            if (value.length < 3) return 'Must be at least 3 characters';
                             return null;
                           },
                         ),
 
                         const SizedBox(height: 20),
 
-                        const Text(
-                          'Email Address',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-
+                        const Text('Email Address', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
                         const SizedBox(height: 8),
-
                         CustomTextField(
                           controller: _emailController,
                           hintText: 'Enter your email',
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter your email';
-                            }
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
-                              return 'Please enter a valid email';
-                            }
+                            if (value == null || value.isEmpty) return 'Please enter your email';
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Please enter a valid email';
                             return null;
                           },
                         ),
 
                         const SizedBox(height: 20),
 
-                        const Text(
-                          'Password',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-
+                        const Text('Password', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
                         const SizedBox(height: 8),
-
                         CustomTextField(
                           controller: _passwordController,
                           hintText: 'Enter your password',
                           obscureText: !_isPasswordVisible,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please enter a password';
-                            }
-                            if (value.length < 6) {
-                              return 'Password must be at least 6 characters';
-                            }
+                            if (value == null || value.isEmpty) return 'Please enter a password';
+                            if (value.length < 6) return 'Must be at least 6 characters';
                             return null;
                           },
                           suffixIcon: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isPasswordVisible = !_isPasswordVisible;
-                              });
-                            },
-                            child: Icon(
-                              _isPasswordVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.grey[600],
-                            ),
+                            onTap: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
+                            child: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey[600]),
                           ),
                         ),
 
                         const SizedBox(height: 20),
 
-                        const Text(
-                          'Confirm Password',
-                          style: TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w600,
-                            color: Colors.black87,
-                          ),
-                        ),
-
+                        const Text('Confirm Password', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
                         const SizedBox(height: 8),
-
                         CustomTextField(
                           controller: _confirmPasswordController,
                           hintText: 'Confirm your password',
                           obscureText: !_isConfirmPasswordVisible,
                           validator: (value) {
-                            if (value == null || value.isEmpty) {
-                              return 'Please confirm your password';
-                            }
-                            if (value != _passwordController.text) {
-                              return 'Passwords do not match';
-                            }
+                            if (value == null || value.isEmpty) return 'Please confirm your password';
+                            if (value != _passwordController.text) return 'Passwords do not match';
                             return null;
                           },
                           suffixIcon: GestureDetector(
-                            onTap: () {
-                              setState(() {
-                                _isConfirmPasswordVisible =
-                                    !_isConfirmPasswordVisible;
-                              });
-                            },
-                            child: Icon(
-                              _isConfirmPasswordVisible
-                                  ? Icons.visibility
-                                  : Icons.visibility_off,
-                              color: Colors.grey[600],
-                            ),
+                            onTap: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
+                            child: Icon(_isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey[600]),
                           ),
                         ),
 
@@ -339,43 +305,20 @@ class _SignupScreenState extends State<SignupScreen> {
                               height: 20,
                               child: Checkbox(
                                 value: _agreeToTerms,
-                                onChanged: (value) {
-                                  setState(() {
-                                    _agreeToTerms = value ?? false;
-                                  });
-                                },
+                                onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
                                 activeColor: AppTheme.primaryColor,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(4),
-                                ),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                               ),
                             ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () {
-                                  setState(() {
-                                    _agreeToTerms = !_agreeToTerms;
-                                  });
-                                },
+                                onTap: () => setState(() => _agreeToTerms = !_agreeToTerms),
                                 child: RichText(
                                   text: TextSpan(
                                     children: [
-                                      TextSpan(
-                                        text: 'I agree to the ',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: Colors.grey[600],
-                                        ),
-                                      ),
-                                      TextSpan(
-                                        text: 'Terms & Conditions',
-                                        style: TextStyle(
-                                          fontSize: 12,
-                                          color: AppTheme.primaryColor,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
+                                      TextSpan(text: 'I agree to the ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                                      TextSpan(text: 'Terms & Conditions', style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
@@ -406,24 +349,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
-                              'Already have an account?',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey,
-                              ),
-                            ),
+                            const Text('Already have an account?', style: TextStyle(fontSize: 13, color: Colors.grey)),
                             const SizedBox(width: 4),
                             GestureDetector(
                               onTap: _goToLogin,
-                              child: Text(
-                                'Log In',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppTheme.primaryColor,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                              ),
+                              child: const Text('Log In', style: TextStyle(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
