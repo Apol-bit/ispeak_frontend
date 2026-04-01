@@ -1,5 +1,11 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import '../config/api_config.dart';
 
 // We keep this enum because the learning_resources_page uses it for styling colors
 enum ChallengeDifficulty { beginner, intermediate, advanced }
@@ -7,14 +13,16 @@ enum ChallengeDifficulty { beginner, intermediate, advanced }
 enum _PracticeState { ready, recording, paused }
 
 class TimedChallengePage extends StatefulWidget {
-  // 1. Changed to dynamic to accept MongoDB JSON map
+  // Accepts MongoDB JSON map
   final dynamic challenge;
+  final String? userId; // Added to pass to your backend
   final VoidCallback? onBack;
   final VoidCallback? onBackToHome;
 
   const TimedChallengePage({
     super.key,
-    required this.challenge, // Now strictly required
+    required this.challenge,
+    this.userId, 
     this.onBack,
     this.onBackToHome,
   });
@@ -27,93 +35,163 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   _PracticeState _state = _PracticeState.ready;
   Timer? _timer;
   int _elapsedSeconds = 0;
-  bool _isFil = false;
+  bool _isUploading = false;
+  
+  // Consistent Language State (Matches your PracticePage!)
+  bool _isEnglish = true; 
 
+  // --- AUDIO RECORDING VARIABLES ---
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  String? _audioPath;
+
+  // Dummy metrics (Will be replaced by AI later)
   double _paceWpm = 120;
   int _fillerCount = 0;
   double _energyLevel = 0.85;
 
-  // 2. Safely extract the time limit from backend JSON
+  // Safely extract the time limit from backend JSON
   int get _durationSeconds => widget.challenge['timeLimitSeconds'] ?? 60;
 
   int get _remainingSeconds =>
       (_durationSeconds - _elapsedSeconds).clamp(0, _durationSeconds);
 
-  void _start() {
+  @override
+  void dispose() {
     _timer?.cancel();
-    if (_state == _PracticeState.ready) {
-      _elapsedSeconds = 0;
-      _paceWpm = 120;
-      _fillerCount = 0;
-      _energyLevel = 0.85;
-    }
-    setState(() => _state = _PracticeState.recording);
-    _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      setState(() {
-        _elapsedSeconds++;
-        // Simulate gradually shifting metrics (Will connect to AI later!)
-        if (_elapsedSeconds >= 5) _paceWpm = 125;
-        if (_elapsedSeconds == 7) _fillerCount = 1;
-        if (_elapsedSeconds == 9) _fillerCount = 3;
-      });
-      // Auto-finish when countdown hits zero
-      if (_elapsedSeconds >= _durationSeconds) {
-        _timer?.cancel();
-        _goToResults();
-      }
-    });
+    _audioRecorder.dispose();
+    super.dispose();
   }
 
-  void _pause() {
+  Future<void> _start() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
+        _timer?.cancel();
+        
+        if (_state == _PracticeState.ready) {
+          _elapsedSeconds = 0;
+          _paceWpm = 120;
+          _fillerCount = 0;
+          _energyLevel = 0.85;
+          
+          final Directory tempDir = await getTemporaryDirectory();
+          _audioPath = '${tempDir.path}/ispeak_challenge_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          
+          await _audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.aacLc), 
+            path: _audioPath!,
+          );
+        } else if (_state == _PracticeState.paused) {
+          await _audioRecorder.resume();
+        }
+
+        setState(() => _state = _PracticeState.recording);
+        
+        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (!mounted) return;
+          setState(() {
+            _elapsedSeconds++;
+            // Simulate gradually shifting metrics 
+            if (_elapsedSeconds >= 5) _paceWpm = 125;
+            if (_elapsedSeconds == 7) _fillerCount = 1;
+            if (_elapsedSeconds == 9) _fillerCount = 3;
+          });
+          
+          // AUTO-FINISH when countdown hits zero
+          if (_elapsedSeconds >= _durationSeconds) {
+            _timer?.cancel();
+            _finishSession(); 
+          }
+        });
+      }
+    } catch (e) {
+      debugPrint("Error starting record: $e");
+    }
+  }
+
+  Future<void> _pause() async {
     _timer?.cancel();
+    await _audioRecorder.pause();
     setState(() => _state = _PracticeState.paused);
   }
 
-  void _reset() {
+  Future<void> _reset() async {
     _timer?.cancel();
+    await _audioRecorder.stop();
+    if (_audioPath != null) {
+      final file = File(_audioPath!);
+      if (await file.exists()) await file.delete();
+    }
     setState(() {
       _state = _PracticeState.ready;
       _elapsedSeconds = 0;
       _fillerCount = 0;
       _paceWpm = 120;
+      _audioPath = null;
     });
   }
 
-  void _goToResults() {
+  // ── YOUR UPLOAD LOGIC ──
+  Future<void> _finishSession() async {
     _timer?.cancel();
-    if (!mounted) return;
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => ChallengeResultsPage(
-          challenge: widget.challenge,
-          durationSeconds: _elapsedSeconds,
-          fillerCount: _fillerCount,
-          paceWpm: _paceWpm.toInt(),
-          onPracticeAgain: () {
-            Navigator.of(context).pop();
-            _reset();
-          },
-          onBackToHome: () {
-            Navigator.of(context).pop();
-            widget.onBackToHome?.call();
-            widget.onBack?.call();
-          },
-        ),
-      ),
-    );
+    setState(() => _isUploading = true); 
+    
+    try {
+      final finalPath = await _audioRecorder.stop();
+      
+      if (finalPath != null) {
+        var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
+        
+        request.fields['userId'] = widget.userId ?? 'test_user';
+        request.fields['language'] = _isEnglish ? 'English' : 'Filipino'; 
+        request.fields['challengeId'] = widget.challenge['_id'] ?? 'unknown'; 
+        
+        request.files.add(await http.MultipartFile.fromPath('audio', finalPath));
+
+        var streamedResponse = await request.send();
+        var response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final resultData = jsonDecode(response.body);
+          
+          if (mounted) {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) => ChallengeResultsPage(
+                  challenge: widget.challenge,
+                  durationSeconds: _elapsedSeconds,
+                  // TODO: Map these to resultData['metrics'] when AI is ready!
+                  fillerCount: _fillerCount,
+                  paceWpm: _paceWpm.toInt(),
+                  onPracticeAgain: () {
+                    Navigator.of(context).pop();
+                    _reset();
+                  },
+                  onBackToHome: () {
+                    Navigator.of(context).pop();
+                    widget.onBackToHome?.call();
+                    widget.onBack?.call();
+                  },
+                ),
+              ),
+            );
+          }
+        } else {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Failed: ${response.body}')));
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint("Error uploading: $e");
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection Error')));
+    }
+    setState(() => _isUploading = false);
   }
 
   String _fmt(int s) {
     final m = (s ~/ 60).toString().padLeft(2, '0');
     final sec = (s % 60).toString().padLeft(2, '0');
     return '$m:$sec';
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
   }
 
   // ── Difficulty helpers pulling from JSON string ──
@@ -264,7 +342,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                 ),
               ),
               const Spacer(),
-              _buildLangToggle(),
+              _buildLanguageToggle(), // YOUR TOGGLE IS HERE!
             ],
           ),
           const SizedBox(height: 10),
@@ -286,43 +364,62 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
     );
   }
 
-  Widget _buildLangToggle() {
+  // ── YOUR CONSISTENT LANGUAGE TOGGLE ──
+  Widget _buildLanguageToggle() {
     return Container(
-      height: 30,
-      padding: const EdgeInsets.all(3),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.25),
+        color: Colors.white.withOpacity(0.2), // Adapted for blue background
         borderRadius: BorderRadius.circular(20),
       ),
+      padding: const EdgeInsets.all(4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _langChip('EN', !_isFil),
-          const SizedBox(width: 2),
-          _langChip('FIL', _isFil),
-        ],
-      ),
-    );
-  }
-
-  Widget _langChip(String label, bool active) {
-    return GestureDetector(
-      onTap: () => setState(() => _isFil = label == 'FIL'),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 180),
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-        decoration: BoxDecoration(
-          color: active ? Colors.orange : Colors.transparent,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 12,
+          GestureDetector(
+            onTap: _state == _PracticeState.recording ? null : () => setState(() => _isEnglish = true),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: _isEnglish ? Colors.white : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: _isEnglish 
+                    ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))]
+                    : [],
+              ),
+              child: Text(
+                'EN', 
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.bold, 
+                  color: _isEnglish ? const Color(0xFF3F7CF4) : Colors.white70
+                ),
+              ),
+            ),
           ),
-        ),
+          GestureDetector(
+            onTap: _state == _PracticeState.recording ? null : () => setState(() => _isEnglish = false),
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+              decoration: BoxDecoration(
+                color: !_isEnglish ? const Color(0xFFF5A623) : Colors.transparent,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: !_isEnglish 
+                    ? [BoxShadow(color: const Color(0xFFF5A623).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                    : [],
+              ),
+              child: Text(
+                'FIL', 
+                style: TextStyle(
+                  fontSize: 12, 
+                  fontWeight: FontWeight.bold, 
+                  color: !_isEnglish ? Colors.white : Colors.white70
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -331,14 +428,14 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.language, size: 14, color: _isFil ? Colors.orange : const Color(0xFF3F7CF4)),
+        Icon(Icons.language, size: 14, color: !_isEnglish ? const Color(0xFFF5A623) : const Color(0xFF3F7CF4)),
         const SizedBox(width: 6),
         Text(
-          _isFil ? 'Practicing in Filipino' : 'Practicing in English',
+          !_isEnglish ? 'Practicing in Filipino' : 'Practicing in English',
           style: TextStyle(
             fontSize: 13,
             fontWeight: FontWeight.w600,
-            color: _isFil ? Colors.orange : const Color(0xFF3F7CF4),
+            color: !_isEnglish ? const Color(0xFFF5A623) : const Color(0xFF3F7CF4),
           ),
         ),
       ],
@@ -465,7 +562,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       child: Column(
         children: [
           GestureDetector(
-            onTap: () {
+            onTap: _isUploading ? null : () {
               if (isReady) {
                 _start();
               } else if (isRecording) {
@@ -503,11 +600,11 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
             ),
           ],
-          if (isPaused) ...[
+          if (isPaused && !_isUploading) ...[
             const SizedBox(height: 8),
             TextButton(
               onPressed: _reset,
-              child: const Text('Reset Session', style: TextStyle(color: Colors.grey)),
+              child: const Text('Reset Session', style: TextStyle(color: Colors.redAccent)),
             ),
           ],
         ],
@@ -567,18 +664,20 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
-        onPressed: _goToResults,
-        child: const Text(
-          'Finish & View Results',
-          style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
-        ),
+        onPressed: _isUploading ? null : _finishSession, // YOUR AUTO UPLOAD
+        child: _isUploading 
+          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Text(
+              'Finish & View Results',
+              style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
+            ),
       ),
     );
   }
 }
 
 // ═════════════════════════════════════════════════════════════
-//  SESSION RESULTS PAGE (NOW DYNAMIC)
+//  SESSION RESULTS PAGE (DYNAMIC)
 // ═════════════════════════════════════════════════════════════
 class ChallengeResultsPage extends StatelessWidget {
   // Accepts dynamic JSON payload
