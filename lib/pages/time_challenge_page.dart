@@ -37,14 +37,14 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   int _elapsedSeconds = 0;
   bool _isUploading = false;
   
-  // Consistent Language State
+  // Consistent Language State (Matches your PracticePage!)
   bool _isEnglish = true; 
 
   // --- AUDIO RECORDING VARIABLES ---
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
 
-  // Dummy metrics (Will be replaced by AI later)
+  // Visual UI placeholders for the recording screen
   double _paceWpm = 120;
   int _fillerCount = 0;
   double _energyLevel = 0.85;
@@ -90,7 +90,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
           if (!mounted) return;
           setState(() {
             _elapsedSeconds++;
-            // Simulate gradually shifting metrics 
+            // Simulate gradually shifting metrics for the live recording UI
             if (_elapsedSeconds >= 5) _paceWpm = 125;
             if (_elapsedSeconds == 7) _fillerCount = 1;
             if (_elapsedSeconds == 9) _fillerCount = 3;
@@ -151,9 +151,8 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         var response = await http.Response.fromStream(streamedResponse);
 
         if (response.statusCode == 200 || response.statusCode == 201) {
+          // Parse the real AI result data!
           final resultData = jsonDecode(response.body);
-          
-          // FIX: Print the data to console so Dart knows the variable is "used"
           debugPrint("AI Worker Response: $resultData"); 
           
           if (mounted) {
@@ -162,9 +161,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                 builder: (_) => ChallengeResultsPage(
                   challenge: widget.challenge,
                   durationSeconds: _elapsedSeconds,
-                  // TODO: Map these to resultData['metrics'] when AI is ready!
-                  fillerCount: _fillerCount,
-                  paceWpm: _paceWpm.toInt(),
+                  sessionData: resultData, // Passing the real API data!
                   onPracticeAgain: () {
                     Navigator.of(context).pop();
                     _reset();
@@ -245,7 +242,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       body: DefaultTextStyle.merge(
         style: const TextStyle(decoration: TextDecoration.none),
         child: SafeArea(
-          top: false, // <-- Disabled top safe area for immersive Edge-to-Edge design!
+          top: false, // Edge-to-Edge UI
           bottom: true,
           child: Column(
             children: [
@@ -327,11 +324,9 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
     return Container(
       width: double.infinity,
-      // Uses MediaQuery to push content below the transparent status bar
       padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 18),
       decoration: const BoxDecoration(
         color: Color(0xFF3F7CF4),
-        // Optional: slight rounded bottom corners for a softer look
         borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(16),
           bottomRight: Radius.circular(16),
@@ -350,8 +345,9 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.chevron_left, color: Colors.white, size: 20),
-                    Text('Back', style: TextStyle(color: Colors.white, fontSize: 14)),
+                    Icon(Icons.chevron_left, color: Colors.white, size: 24),
+                    SizedBox(width: 4),
+                    Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
                   ],
                 ),
               ),
@@ -501,7 +497,6 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             ],
           ),
           const SizedBox(height: 14),
-          // Prompt box
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
@@ -691,14 +686,15 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 }
 
 // ═════════════════════════════════════════════════════════════
-//  SESSION RESULTS PAGE (DYNAMIC)
+//  SESSION RESULTS PAGE (NOW 100% DYNAMIC!)
 // ═════════════════════════════════════════════════════════════
 class ChallengeResultsPage extends StatelessWidget {
-  // Accepts dynamic JSON payload
   final dynamic challenge;
   final int durationSeconds;
-  final int fillerCount;
-  final int paceWpm;
+  
+  // Accept the JSON map from the AI analysis
+  final Map<String, dynamic>? sessionData; 
+  
   final VoidCallback? onPracticeAgain;
   final VoidCallback? onBackToHome;
 
@@ -706,8 +702,7 @@ class ChallengeResultsPage extends StatelessWidget {
     super.key,
     required this.challenge,
     required this.durationSeconds,
-    this.fillerCount = 3,
-    this.paceWpm = 125,
+    this.sessionData,
     this.onPracticeAgain,
     this.onBackToHome,
   });
@@ -720,36 +715,55 @@ class ChallengeResultsPage extends StatelessWidget {
 
   String get _dateStr {
     final now = DateTime.now();
-    const months = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[now.month - 1]} ${now.day}, ${now.year}';
   }
 
-  // Current dummy scoring (To be replaced with Python AI Output)
-  int get _paceScore => (paceWpm >= 120 && paceWpm <= 150) ? 90 : 75;
-  int get _clarityScore => fillerCount == 0 ? 100 : (90 - fillerCount * 3).clamp(60, 100);
-  int get _energyScore  => 82;
-  int get _overallScore => ((_paceScore + _clarityScore + _energyScore) / 3).round();
-
-  String get _overallLabel {
-    if (_overallScore >= 90) return 'Excellent 🎉';
-    if (_overallScore >= 75) return 'Great Job 👍';
-    return 'Keep Practicing 💪';
+  // ── YOUR EXACT DYNAMIC LOGIC FROM RESULT_PAGE.DART ──
+  Color _getScoreColor(num score) {
+    if (score == 0) return Colors.grey; 
+    if (score >= 90) return const Color(0xFF3FBD7A); 
+    if (score >= 75) return const Color(0xFF3F7CF4); 
+    if (score >= 60) return const Color(0xFFF5A623); 
+    return const Color(0xFFEF4444);                  
   }
 
-  Color get _overallColor {
-    if (_overallScore >= 90) return const Color(0xFF3FBD7A);
-    if (_overallScore >= 75) return const Color(0xFF3F7CF4);
-    return Colors.orange;
+  String _getScoreLabel(num score) {
+    if (score == 0) return 'Pending AI Analysis ⏳';
+    if (score >= 90) return 'Excellent 🎉';
+    if (score >= 75) return 'Good 👍';
+    if (score >= 60) return 'Fair 😐';
+    return 'Needs Work 📈';
   }
 
   @override
   Widget build(BuildContext context) {
+    // Safely extract the metrics from the API payload
+    // Handles { metrics: { ... } } or flat objects
+    final data = sessionData?['metrics'] ?? sessionData ?? {};
+
+    // Extract exactly like your global ResultPage
+    final int wpmDisplay = (data['wpmScore'] ?? data['paceWpm'] ?? 0).toInt();
+    final int fillerDisplay = (data['fillerWordCount'] ?? data['fillerCount'] ?? 0).toInt();
+    final int overallScore = (data['overallScore'] ?? 0).toInt();
+    final int paceScore = (data['paceScore'] ?? 0).toInt();
+    final int clarityScore = (data['clarityScore'] ?? 0).toInt();
+    final int energyScore = (data['energyScore'] ?? 0).toInt();
+
+    final Color overallColor = _getScoreColor(overallScore);
+    
+    // Safely extract specific AI feedback if it exists
+    final feedback = data['feedback'] ?? {};
+    final String paceFb = feedback['pace'] ?? (paceScore == 0 ? 'Awaiting AI Analysis...' : 'Good pacing. Try to maintain consistency.');
+    final String clarityFb = feedback['clarity'] ?? (clarityScore == 0 ? 'Awaiting AI Analysis...' : 'Watch for "um" and "uh".');
+    final String energyFb = feedback['energy'] ?? (energyScore == 0 ? 'Awaiting AI Analysis...' : 'Good energy level.');
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
       body: DefaultTextStyle.merge(
         style: const TextStyle(decoration: TextDecoration.none),
         child: SafeArea(
-          top: false, // Edge-to-edge support here too!
+          top: false, // Edge-to-edge support
           bottom: true,
           child: Column(
             children: [
@@ -760,36 +774,67 @@ class ChallengeResultsPage extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildOverallScoreCard(),
+                      // ── Overall Score Card ──
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(vertical: 30),
+                        decoration: BoxDecoration(
+                          color: Colors.white, borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              overallScore.toString(), 
+                              style: TextStyle(fontSize: 56, fontWeight: FontWeight.bold, color: overallColor, height: 1)
+                            ),
+                            const SizedBox(height: 6),
+                            const Text('Overall Score', style: TextStyle(fontSize: 15, color: Color(0xFF666680))),
+                            const SizedBox(height: 10),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+                              decoration: BoxDecoration(color: overallColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                              child: Text(
+                                _getScoreLabel(overallScore), 
+                                style: TextStyle(color: overallColor, fontWeight: FontWeight.bold, fontSize: 13)
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+
                       const SizedBox(height: 20),
                       const Text(
                         'Performance Breakdown',
                         style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
                       ),
                       const SizedBox(height: 12),
+
+                      // ── Breakdown Cards (Dynamic Colors + Data) ──
                       _buildBreakdownCard(
                         icon: Icons.volume_up, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
-                        title: 'Pace', subtitle: '$paceWpm words per minute',
-                        score: _paceScore, scoreColor: const Color(0xFF3FBD7A),
-                        progress: _paceScore / 100, barColor: const Color(0xFF3FBD7A),
-                        feedback: 'Good pacing. Try to maintain consistency throughout.',
+                        title: 'Pace', subtitle: '$wpmDisplay words per minute',
+                        score: paceScore, scoreColor: _getScoreColor(paceScore),
+                        progress: (paceScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(paceScore),
+                        feedback: paceFb,
                       ),
                       const SizedBox(height: 10),
                       _buildBreakdownCard(
                         icon: Icons.chat_bubble_outline, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
-                        title: 'Clarity', subtitle: fillerCount == 0 ? 'No filler words detected' : '$fillerCount filler words detected',
-                        score: _clarityScore, scoreColor: const Color(0xFF3FBD7A),
-                        progress: _clarityScore / 100, barColor: const Color(0xFF3FBD7A),
-                        feedback: fillerCount == 0 ? 'Perfect! No filler words at all.' : 'Minimal filler words. Watch for "um" and "uh".',
+                        title: 'Clarity', subtitle: '$fillerDisplay filler words detected',
+                        score: clarityScore, scoreColor: _getScoreColor(clarityScore),
+                        progress: (clarityScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(clarityScore),
+                        feedback: clarityFb,
                       ),
                       const SizedBox(height: 10),
                       _buildBreakdownCard(
                         icon: Icons.bolt, iconColor: Colors.orange, iconBg: const Color(0xFFFFF3E0),
-                        title: 'Energy', subtitle: 'Strong vocal projection',
-                        score: _energyScore, scoreColor: Colors.orange,
-                        progress: _energyScore / 100, barColor: Colors.orange,
-                        feedback: 'Excellent energy! Your enthusiasm is engaging.',
+                        title: 'Energy', subtitle: 'Vocal projection',
+                        score: energyScore, scoreColor: _getScoreColor(energyScore),
+                        progress: (energyScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(energyScore),
+                        feedback: energyFb,
                       ),
+
                       const SizedBox(height: 24),
                       _buildPrimaryButton('Practice Again', onPracticeAgain),
                       const SizedBox(height: 10),
@@ -841,30 +886,6 @@ class ChallengeResultsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildOverallScoreCard() {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
-      ),
-      child: Column(
-        children: [
-          Text('$_overallScore', style: TextStyle(fontSize: 56, fontWeight: FontWeight.bold, color: _overallColor, height: 1)),
-          const SizedBox(height: 6),
-          const Text('Overall Score', style: TextStyle(fontSize: 15, color: Color(0xFF666680))),
-          const SizedBox(height: 10),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
-            decoration: BoxDecoration(color: _overallColor.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
-            child: Text(_overallLabel, style: TextStyle(color: _overallColor, fontWeight: FontWeight.bold, fontSize: 13)),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildBreakdownCard({
     required IconData icon, required Color iconColor, required Color iconBg,
     required String title, required String subtitle, required int score,
@@ -872,7 +893,7 @@ class ChallengeResultsPage extends StatelessWidget {
   }) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white, borderRadius: BorderRadius.circular(12),
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
@@ -900,19 +921,19 @@ class ChallengeResultsPage extends StatelessWidget {
               Text('$score', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 22)),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: progress, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation(barColor), minHeight: 7,
             ),
           ),
-          const SizedBox(height: 6),
+          const SizedBox(height: 8),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Icon(Icons.check, size: 13, color: barColor),
-              const SizedBox(width: 4),
+              Icon(score == 0 ? Icons.hourglass_empty : Icons.check, size: 14, color: score == 0 ? Colors.grey : barColor),
+              const SizedBox(width: 6),
               Expanded(child: Text(feedback, style: const TextStyle(fontSize: 12, color: Colors.grey))),
             ],
           ),
