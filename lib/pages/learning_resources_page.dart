@@ -80,12 +80,13 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       body: Material(
         color: const Color(0xFFF2F4F7),
         child: SafeArea(
+          top: false, // <-- Disabled top safe area to match Dashboard!
           bottom: true,
           child: DefaultTextStyle.merge(
             style: const TextStyle(decoration: TextDecoration.none),
             child: Column(
               children: [
-                _header(),
+                _header(context), // Passed context for dynamic padding
                 Expanded(
                   child: _isLoading
                       ? const Center(child: CircularProgressIndicator(color: Color(0xFF3F7CF4)))
@@ -115,10 +116,13 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     );
   }
 
-  Widget _header() {
+  Widget _header(BuildContext context) {
+    final double topPadding = MediaQuery.of(context).padding.top;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 22),
+      // Matches Dashboard padding exactly!
+      padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
       decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -128,19 +132,23 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chevron_left, color: Colors.white, size: 20),
-                Text('Back', style: TextStyle(color: Colors.white, fontSize: 14)),
+                Icon(Icons.chevron_left, color: Colors.white, size: 24),
+                SizedBox(width: 4),
+                Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          const Text('Learning Resources',
-            style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+          const SizedBox(height: 16),
+          const Text(
+            'Learning Resources',
+            style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 4),
-          const Text('Improve your speaking skills',
-            style: TextStyle(color: Colors.white70, fontSize: 13),
+          const Text(
+            'Improve your speaking skills',
+            style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
+          const SizedBox(height: 8), // Extra padding to give it that expansive feel
         ],
       ),
     );

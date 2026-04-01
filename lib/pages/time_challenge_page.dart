@@ -37,7 +37,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   int _elapsedSeconds = 0;
   bool _isUploading = false;
   
-  // Consistent Language State (Matches your PracticePage!)
+  // Consistent Language State
   bool _isEnglish = true; 
 
   // --- AUDIO RECORDING VARIABLES ---
@@ -153,6 +153,9 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
           
+          // FIX: Print the data to console so Dart knows the variable is "used"
+          debugPrint("AI Worker Response: $resultData"); 
+          
           if (mounted) {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -242,10 +245,11 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       body: DefaultTextStyle.merge(
         style: const TextStyle(decoration: TextDecoration.none),
         child: SafeArea(
+          top: false, // <-- Disabled top safe area for immersive Edge-to-Edge design!
           bottom: true,
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(context),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
@@ -318,11 +322,21 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final double topPadding = MediaQuery.of(context).padding.top;
+
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 18),
-      color: const Color(0xFF3F7CF4),
+      // Uses MediaQuery to push content below the transparent status bar
+      padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 18),
+      decoration: const BoxDecoration(
+        color: Color(0xFF3F7CF4),
+        // Optional: slight rounded bottom corners for a softer look
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -342,33 +356,33 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                 ),
               ),
               const Spacer(),
-              _buildLanguageToggle(), // YOUR TOGGLE IS HERE!
+              _buildLanguageToggle(),
             ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 14),
           const Text(
             'Timed Challenge',
             style: TextStyle(
               color: Colors.white,
-              fontSize: 22,
+              fontSize: 24,
               fontWeight: FontWeight.bold,
             ),
           ),
-          const SizedBox(height: 3),
+          const SizedBox(height: 4),
           Text(
             widget.challenge['description'] ?? 'Test your skills',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
+          const SizedBox(height: 4),
         ],
       ),
     );
   }
 
-  // ── YOUR CONSISTENT LANGUAGE TOGGLE ──
   Widget _buildLanguageToggle() {
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2), // Adapted for blue background
+        color: Colors.white.withOpacity(0.2), 
         borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.all(4),
@@ -664,11 +678,11 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           elevation: 0,
         ),
-        onPressed: _isUploading ? null : _finishSession, // YOUR AUTO UPLOAD
+        onPressed: _isUploading ? null : _finishSession, 
         child: _isUploading 
           ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
           : const Text(
-              'Finish & View Results',
+              'Finish & Analyze Speech',
               style: TextStyle(color: Colors.white, fontSize: 15, fontWeight: FontWeight.w600),
             ),
       ),
@@ -735,10 +749,11 @@ class ChallengeResultsPage extends StatelessWidget {
       body: DefaultTextStyle.merge(
         style: const TextStyle(decoration: TextDecoration.none),
         child: SafeArea(
+          top: false, // Edge-to-edge support here too!
           bottom: true,
           child: Column(
             children: [
-              _buildHeader(),
+              _buildHeader(context),
               Expanded(
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
@@ -790,11 +805,18 @@ class ChallengeResultsPage extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(BuildContext context) {
+    final double topPadding = MediaQuery.of(context).padding.top;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-      color: const Color(0xFF3F7CF4),
+      padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 20),
+      decoration: const BoxDecoration(
+        color: Color(0xFF3F7CF4),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -803,15 +825,17 @@ class ChallengeResultsPage extends StatelessWidget {
             child: const Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Icon(Icons.chevron_left, color: Colors.white, size: 20),
-                Text('Back to Home', style: TextStyle(color: Colors.white, fontSize: 14)),
+                Icon(Icons.chevron_left, color: Colors.white, size: 24),
+                SizedBox(width: 4),
+                Text('Back to Home', style: TextStyle(color: Colors.white, fontSize: 16)),
               ],
             ),
           ),
-          const SizedBox(height: 10),
-          const Text('Session Results', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 3),
-          Text('$_dateStr • ${_fmt(durationSeconds)} duration', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+          const SizedBox(height: 16),
+          const Text('Session Results', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text('$_dateStr • ${_fmt(durationSeconds)} duration', style: const TextStyle(color: Colors.white70, fontSize: 14)),
+          const SizedBox(height: 8),
         ],
       ),
     );

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // <-- ADDED: Required for System UI controls
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'pages/dashboard_page.dart';
@@ -14,6 +15,21 @@ import 'config/api_config.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  // --- ADDED: EDGE-TO-EDGE UI CONFIGURATION ---
+  // This tells the OS to draw your app behind the status and navigation bars.
+  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
+  
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent, // Transparent top bar
+      statusBarIconBrightness: Brightness.light, // White icons (battery/wifi) to contrast with your blue headers
+      systemNavigationBarColor: Colors.transparent, // Transparent bottom swipe pill area
+      systemNavigationBarIconBrightness: Brightness.dark, 
+    ),
+  );
+  // ---------------------------------------------
+
   runApp(const MyApp());
 }
 
@@ -142,7 +158,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      extendBody: true,
+      extendBody: true, // <-- This is what allows your UI to flow under the navigation bar!
       resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFFF5F5F5),
       body: IndexedStack(
