@@ -113,13 +113,12 @@ class ScriptDetailPage extends StatelessWidget {
 
     return Container(
       width: double.infinity,
+      // Same padding style as the Dashboard/Resources header
       padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 20),
       decoration: const BoxDecoration(
         color: Color(0xFF3F7CF4),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
+        // MODIFICATION: Removed the curved corners (borderRadius property).
+        // It now defaults to a straight rectangle, matching the Dashboard style.
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,7 +267,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       if (await file.exists()) await file.delete();
     }
     
-    // FIX IS RIGHT HERE! Check if the widget is still on screen!
+    // FIX: Safety check for async operation!
     if (!mounted) return; 
 
     setState(() {
@@ -630,10 +629,7 @@ class SessionResultsPage extends StatelessWidget {
               padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 14, 16, 22),
               decoration: const BoxDecoration(
                 color: Color(0xFF3F7CF4),
-                borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(16),
-                  bottomRight: Radius.circular(16),
-                ),
+                // Corner rounding removed here as well for consistency.
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,

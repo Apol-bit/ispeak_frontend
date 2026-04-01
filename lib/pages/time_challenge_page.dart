@@ -37,7 +37,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   int _elapsedSeconds = 0;
   bool _isUploading = false;
   
-  // Consistent Language State (Matches your PracticePage!)
+  // Consistent Language State
   bool _isEnglish = true; 
 
   // --- AUDIO RECORDING VARIABLES ---
@@ -121,6 +121,9 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       final file = File(_audioPath!);
       if (await file.exists()) await file.delete();
     }
+    
+    if (!mounted) return;
+
     setState(() {
       _state = _PracticeState.ready;
       _elapsedSeconds = 0;
@@ -151,12 +154,11 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         var response = await http.Response.fromStream(streamedResponse);
 
         if (response.statusCode == 200 || response.statusCode == 201) {
-          // Parse the real AI result data!
           final resultData = jsonDecode(response.body);
           debugPrint("AI Worker Response: $resultData"); 
           
           if (mounted) {
-            Navigator.of(context).push(
+            Navigator.of(context).pushReplacement(
               MaterialPageRoute(
                 builder: (_) => ChallengeResultsPage(
                   challenge: widget.challenge,
@@ -327,10 +329,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 18),
       decoration: const BoxDecoration(
         color: Color(0xFF3F7CF4),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
+        // CURVES REMOVED HERE
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -369,7 +368,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             widget.challenge['description'] ?? 'Test your skills',
             style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
-          const SizedBox(height: 4),
+          const SizedBox(height: 8), // Extra padding for spacing
         ],
       ),
     );
@@ -719,7 +718,6 @@ class ChallengeResultsPage extends StatelessWidget {
     return '${months[now.month - 1]} ${now.day}, ${now.year}';
   }
 
-  // ── YOUR EXACT DYNAMIC LOGIC FROM RESULT_PAGE.DART ──
   Color _getScoreColor(num score) {
     if (score == 0) return Colors.grey; 
     if (score >= 90) return const Color(0xFF3FBD7A); 
@@ -738,11 +736,8 @@ class ChallengeResultsPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Safely extract the metrics from the API payload
-    // Handles { metrics: { ... } } or flat objects
     final data = sessionData?['metrics'] ?? sessionData ?? {};
 
-    // Extract exactly like your global ResultPage
     final int wpmDisplay = (data['wpmScore'] ?? data['paceWpm'] ?? 0).toInt();
     final int fillerDisplay = (data['fillerWordCount'] ?? data['fillerCount'] ?? 0).toInt();
     final int overallScore = (data['overallScore'] ?? 0).toInt();
@@ -752,7 +747,6 @@ class ChallengeResultsPage extends StatelessWidget {
 
     final Color overallColor = _getScoreColor(overallScore);
     
-    // Safely extract specific AI feedback if it exists
     final feedback = data['feedback'] ?? {};
     final String paceFb = feedback['pace'] ?? (paceScore == 0 ? 'Awaiting AI Analysis...' : 'Good pacing. Try to maintain consistency.');
     final String clarityFb = feedback['clarity'] ?? (clarityScore == 0 ? 'Awaiting AI Analysis...' : 'Watch for "um" and "uh".');
@@ -810,7 +804,7 @@ class ChallengeResultsPage extends StatelessWidget {
                       ),
                       const SizedBox(height: 12),
 
-                      // ── Breakdown Cards (Dynamic Colors + Data) ──
+                      // ── Breakdown Cards ──
                       _buildBreakdownCard(
                         icon: Icons.volume_up, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
                         title: 'Pace', subtitle: '$wpmDisplay words per minute',
@@ -857,10 +851,7 @@ class ChallengeResultsPage extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 20),
       decoration: const BoxDecoration(
         color: Color(0xFF3F7CF4),
-        borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(16),
-          bottomRight: Radius.circular(16),
-        ),
+        // CURVES REMOVED HERE
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -908,7 +899,7 @@ class ChallengeResultsPage extends StatelessWidget {
                 decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
                 child: Icon(icon, color: iconColor, size: 20),
               ),
-              const SizedBox(width: 10),
+              const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -918,14 +909,14 @@ class ChallengeResultsPage extends StatelessWidget {
                   ],
                 ),
               ),
-              Text('$score', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 22)),
+              Text('$score', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 24)),
             ],
           ),
           const SizedBox(height: 14),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
-              value: progress, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation(barColor), minHeight: 7,
+              value: progress, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation(barColor), minHeight: 8,
             ),
           ),
           const SizedBox(height: 8),
