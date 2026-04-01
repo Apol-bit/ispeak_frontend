@@ -1,21 +1,28 @@
 import 'dart:async';
+import 'dart:io';
+import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:record/record.dart';
+import 'package:path_provider/path_provider.dart';
+import '../config/api_config.dart';
 
 // ─── Script Detail Page (NOW POWERED BY MONGODB JSON) ─────────────────────────
 
 class ScriptDetailPage extends StatelessWidget {
-  // Changed from `ScriptData` to `dynamic` to accept the backend JSON map
   final dynamic script;
-  const ScriptDetailPage({super.key, required this.script});
+  final String? userId; // Passed down to attach to the audio recording
+
+  const ScriptDetailPage({super.key, required this.script, this.userId});
 
   @override
   Widget build(BuildContext context) {
-    // Extract full content securely
     final String fullContent = script['content'] ?? 'No content available for this script.';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
       body: SafeArea(
+        top: false, // Edge-to-edge support
         child: Column(
           children: [
             _buildHeader(context),
@@ -78,8 +85,10 @@ class ScriptDetailPage extends StatelessWidget {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            // Pass the exact same JSON map into the practice page
-                            builder: (_) => ScriptPracticePage(script: script),
+                            builder: (_) => ScriptPracticePage(
+                              script: script, 
+                              userId: userId,
+                            ),
                           ),
                         ),
                       ),
@@ -95,16 +104,23 @@ class ScriptDetailPage extends StatelessWidget {
   }
 
   Widget _buildHeader(BuildContext context) {
-    // Pulling header data directly from backend keys
     final title = script['title'] ?? 'Practice Script';
     final duration = '${script['estimatedMinutes'] ?? 0} min';
     final level = script['difficulty'] ?? 'Beginner';
     final language = script['language'] ?? 'English';
+    
+    final double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 20),
-      color: const Color(0xFF3F7CF4),
+      padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 20),
+      decoration: const BoxDecoration(
+        color: Color(0xFF3F7CF4),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -138,10 +154,7 @@ class ScriptDetailPage extends StatelessWidget {
   }
 
   Widget _buildTipsSection() {
-    // Cast the JSON array into a Flutter List
     final List<dynamic> tips = script['tips'] ?? [];
-
-    // Don't render the box if there are no tips
     if (tips.isEmpty) return const SizedBox.shrink();
 
     return Container(
@@ -187,9 +200,10 @@ class ScriptDetailPage extends StatelessWidget {
 enum PracticeStatus { ready, recording, paused }
 
 class ScriptPracticePage extends StatefulWidget {
-  // Accepts the backend JSON map
   final dynamic script;
-  const ScriptPracticePage({super.key, required this.script});
+  final String? userId;
+  
+  const ScriptPracticePage({super.key, required this.script, this.userId});
 
   @override
   State<ScriptPracticePage> createState() => _ScriptPracticePageState();
@@ -199,20 +213,115 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   PracticeStatus _status = PracticeStatus.ready;
   int _seconds = 0;
   Timer? _timer;
+  bool _isUploading = false;
 
-  void _toggleState() {
-    setState(() {
-      if (_status == PracticeStatus.ready || _status == PracticeStatus.paused) {
-        _status = PracticeStatus.recording;
-        _timer = Timer.periodic(
-          const Duration(seconds: 1),
-          (t) => setState(() => _seconds++),
-        );
-      } else {
-        _status = PracticeStatus.paused;
+  final AudioRecorder _audioRecorder = AudioRecorder();
+  String? _audioPath;
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    _audioRecorder.dispose();
+    super.dispose();
+  }
+
+  Future<void> _start() async {
+    try {
+      if (await _audioRecorder.hasPermission()) {
         _timer?.cancel();
+        
+        if (_status == PracticeStatus.ready) {
+          _seconds = 0;
+          final Directory tempDir = await getTemporaryDirectory();
+          _audioPath = '${tempDir.path}/ispeak_script_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          
+          await _audioRecorder.start(
+            const RecordConfig(encoder: AudioEncoder.aacLc), 
+            path: _audioPath!,
+          );
+        } else if (_status == PracticeStatus.paused) {
+          await _audioRecorder.resume();
+        }
+
+        setState(() => _status = PracticeStatus.recording);
+        
+        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) setState(() => _seconds++);
+        });
       }
+    } catch (e) {
+      debugPrint("Error starting record: $e");
+    }
+  }
+
+  Future<void> _pause() async {
+    _timer?.cancel();
+    await _audioRecorder.pause();
+    setState(() => _status = PracticeStatus.paused);
+  }
+
+  Future<void> _reset() async {
+    _timer?.cancel();
+    await _audioRecorder.stop();
+    if (_audioPath != null) {
+      final file = File(_audioPath!);
+      if (await file.exists()) await file.delete();
+    }
+    
+    // FIX IS RIGHT HERE! Check if the widget is still on screen!
+    if (!mounted) return; 
+
+    setState(() {
+      _status = PracticeStatus.ready;
+      _seconds = 0;
+      _audioPath = null;
     });
+  }
+
+  Future<void> _finishSession() async {
+    _timer?.cancel();
+    setState(() => _isUploading = true); 
+    
+    try {
+      final finalPath = await _audioRecorder.stop();
+      
+      if (finalPath != null) {
+        var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
+        
+        request.fields['userId'] = widget.userId ?? 'test_user';
+        // Scripts have a fixed language, pass it directly to backend
+        request.fields['language'] = widget.script['language'] ?? 'English'; 
+        request.fields['resourceId'] = widget.script['_id'] ?? 'unknown'; 
+        
+        request.files.add(await http.MultipartFile.fromPath('audio', finalPath));
+
+        var streamedResponse = await request.send();
+        var response = await http.Response.fromStream(streamedResponse);
+
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          final resultData = jsonDecode(response.body);
+          debugPrint("AI Worker Response: $resultData"); 
+          
+          if (mounted) {
+            Navigator.of(context).pushReplacement(
+              MaterialPageRoute(
+                builder: (_) => SessionResultsPage(
+                  script: widget.script,
+                  duration: _formatTime(_seconds),
+                  sessionData: resultData, // Real AI Data
+                ),
+              ),
+            );
+          }
+        } else {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Failed: ${response.body}')));
+        }
+      }
+    } catch (e) {
+      debugPrint("Error uploading: $e");
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection Error')));
+    }
+    setState(() => _isUploading = false);
   }
 
   String _formatTime(int s) {
@@ -222,14 +331,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    // Extract data for the practice card
     final title = widget.script['title'] ?? 'Practice Script';
     final level = widget.script['difficulty'] ?? 'Beginner';
     final language = widget.script['language'] ?? 'English';
@@ -238,6 +340,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
       body: SafeArea(
+        top: false, // Edge-to-edge UI
         child: Column(
           children: [
             _buildHeader(context),
@@ -294,7 +397,11 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
 
                     // ── Record Button ──
                     GestureDetector(
-                      onTap: _toggleState,
+                      onTap: _isUploading ? null : () {
+                        if (_status == PracticeStatus.ready) _start();
+                        else if (_status == PracticeStatus.recording) _pause();
+                        else _start();
+                      },
                       child: Container(
                         width: 112,
                         height: 112,
@@ -365,23 +472,17 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                             ),
                             elevation: 0,
                           ),
-                          onPressed: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => SessionResultsPage(
-                                script: widget.script,
-                                duration: _formatTime(_seconds),
+                          onPressed: _isUploading ? null : _finishSession,
+                          child: _isUploading 
+                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                            : const Text(
+                                'Finish & Analyze Speech',
+                                style: TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 15,
+                                ),
                               ),
-                            ),
-                          ),
-                          child: const Text(
-                            'Finish & View Results',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 15,
-                            ),
-                          ),
                         ),
                       ),
                     ] else
@@ -397,45 +498,48 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final double topPadding = MediaQuery.of(context).padding.top;
+    
     return Container(
       width: double.infinity,
       color: Colors.white,
+      padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: const Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.chevron_left, color: Colors.black87, size: 20),
-                      Text('Back', style: TextStyle(color: Colors.black87, fontSize: 14)),
-                    ],
-                  ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              GestureDetector(
+                onTap: () {
+                  _timer?.cancel();
+                  Navigator.pop(context);
+                },
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.chevron_left, color: Colors.black87, size: 20),
+                    Text('Back', style: TextStyle(color: Colors.black87, fontSize: 14)),
+                  ],
                 ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Script Practice',
-                  style: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 18,
-                    color: Color(0xFF1A1A2E),
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.script['description'] ?? 'Practice reading aloud.',
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-                const SizedBox(height: 14),
-              ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const Text(
+            'Script Practice',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 22,
+              color: Color(0xFF1A1A2E),
             ),
           ),
+          const SizedBox(height: 4),
+          Text(
+            widget.script['description'] ?? 'Practice reading aloud.',
+            style: const TextStyle(color: Colors.grey, fontSize: 13),
+          ),
+          const SizedBox(height: 18),
           Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
         ],
       ),
@@ -457,22 +561,39 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   }
 }
 
-// ─── Session Results Page ─────────────────────────────────────────────────────
+// ─── Session Results Page (NOW DYNAMIC) ───────────────────────────────────────
 
 class SessionResultsPage extends StatelessWidget {
-  // Accepts the dynamic script map
   final dynamic script;
   final String duration;
+  final Map<String, dynamic>? sessionData; 
 
   const SessionResultsPage({
     super.key,
     required this.script,
     required this.duration,
+    this.sessionData,
   });
 
   String _monthName(int m) {
-    const months = ['', 'January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[m];
+  }
+
+  Color _getScoreColor(num score) {
+    if (score == 0) return Colors.grey; 
+    if (score >= 90) return const Color(0xFF3FBD7A); 
+    if (score >= 75) return const Color(0xFF3F7CF4); 
+    if (score >= 60) return const Color(0xFFF5A623); 
+    return const Color(0xFFEF4444);                  
+  }
+
+  String _getScoreLabel(num score) {
+    if (score == 0) return 'Pending AI Analysis ⏳';
+    if (score >= 90) return 'Excellent 🎉';
+    if (score >= 75) return 'Good 👍';
+    if (score >= 60) return 'Fair 😐';
+    return 'Needs Work 📈';
   }
 
   @override
@@ -480,18 +601,40 @@ class SessionResultsPage extends StatelessWidget {
     final now = DateTime.now();
     final dateStr = '${_monthName(now.month)} ${now.day}, ${now.year} • $duration duration';
 
-    // Note: The scores and metrics below are currently hardcoded for the UI design.
-    // Eventually, we will wire these up to the Python FastAPI worker!
+    // Safely extract data
+    final data = sessionData?['metrics'] ?? sessionData ?? {};
+
+    final int wpmDisplay = (data['wpmScore'] ?? data['paceWpm'] ?? 0).toInt();
+    final int fillerDisplay = (data['fillerWordCount'] ?? data['fillerCount'] ?? 0).toInt();
+    final int overallScore = (data['overallScore'] ?? 0).toInt();
+    final int paceScore = (data['paceScore'] ?? 0).toInt();
+    final int clarityScore = (data['clarityScore'] ?? 0).toInt();
+    final int energyScore = (data['energyScore'] ?? 0).toInt();
+
+    final Color overallColor = _getScoreColor(overallScore);
+    
+    final feedback = data['feedback'] ?? {};
+    final String paceFb = feedback['pace'] ?? (paceScore == 0 ? 'Awaiting AI Analysis...' : 'Good pacing.');
+    final String clarityFb = feedback['clarity'] ?? (clarityScore == 0 ? 'Awaiting AI Analysis...' : 'Minimal fillers.');
+    final String energyFb = feedback['energy'] ?? (energyScore == 0 ? 'Awaiting AI Analysis...' : 'Good energy level.');
+
     return Scaffold(
       backgroundColor: const Color(0xFFF2F4F7),
       body: SafeArea(
+        top: false, // Edge-to-edge support
         child: Column(
           children: [
             // ── Blue Header ──
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(16, 14, 16, 22),
-              color: const Color(0xFF3F7CF4),
+              padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 14, 16, 22),
+              decoration: const BoxDecoration(
+                color: Color(0xFF3F7CF4),
+                borderRadius: BorderRadius.only(
+                  bottomLeft: Radius.circular(16),
+                  bottomRight: Radius.circular(16),
+                ),
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -505,15 +648,15 @@ class SessionResultsPage extends StatelessWidget {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 12),
+                  const SizedBox(height: 16),
                   const Text(
                     'Session Results',
-                    style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                    style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
                   ),
                   const SizedBox(height: 4),
                   Text(
                     dateStr,
-                    style: const TextStyle(color: Colors.white70, fontSize: 12),
+                    style: const TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
@@ -524,6 +667,7 @@ class SessionResultsPage extends StatelessWidget {
               child: SingleChildScrollView(
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // ── Overall Score Card ──
                     Container(
@@ -531,84 +675,71 @@ class SessionResultsPage extends StatelessWidget {
                       padding: const EdgeInsets.symmetric(vertical: 30),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
                       ),
                       child: Column(
                         children: [
-                          const Text(
-                            '85',
-                            style: TextStyle(fontSize: 58, fontWeight: FontWeight.bold, color: Color(0xFF3FBD7A)),
+                          Text(
+                            overallScore.toString(),
+                            style: TextStyle(fontSize: 56, fontWeight: FontWeight.bold, color: overallColor, height: 1),
                           ),
+                          const SizedBox(height: 6),
                           const Text(
                             'Overall Score',
-                            style: TextStyle(color: Colors.grey, fontSize: 14),
+                            style: TextStyle(color: Color(0xFF666680), fontSize: 15),
                           ),
-                          const SizedBox(height: 12),
+                          const SizedBox(height: 10),
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
                             decoration: BoxDecoration(
-                              color: const Color(0xFFDFF5E8),
+                              color: overallColor.withOpacity(0.15),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text(
-                              'Excellent 🎉',
-                              style: TextStyle(color: Color(0xFF3FBD7A), fontWeight: FontWeight.bold, fontSize: 13),
+                            child: Text(
+                              _getScoreLabel(overallScore),
+                              style: TextStyle(color: overallColor, fontWeight: FontWeight.bold, fontSize: 13),
                             ),
                           ),
                         ],
                       ),
                     ),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'Performance Breakdown',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+                    ),
+                    const SizedBox(height: 12),
 
-                    // ── Performance Breakdown Card ──
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Performance Breakdown',
-                            style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A2E)),
-                          ),
-                          const SizedBox(height: 18),
-
-                          const _MetricRow(
-                            icon: Icons.speed_outlined, iconBg: Color(0xFFFFF3E0), iconColor: Color(0xFFFF9800),
-                            label: 'Pace', score: 82, scoreColor: Color(0xFFFF9800),
-                            subtitle: '139 words per minute', barColor: Color(0xFFFF9800),
-                            feedback: 'Good pacing. Try to maintain consistency throughout.',
-                          ),
-                          Divider(height: 28, color: Colors.grey.shade100),
-
-                          const _MetricRow(
-                            icon: Icons.chat_bubble_outline, iconBg: Color(0xFFE8F5E9), iconColor: Color(0xFF3FBD7A),
-                            label: 'Clarity', score: 93, scoreColor: Color(0xFF3FBD7A),
-                            subtitle: '2 filler words detected', barColor: Color(0xFF3FBD7A),
-                            feedback: 'Minimal filler words. Watch for "um" and "uh".',
-                          ),
-                          Divider(height: 28, color: Colors.grey.shade100),
-
-                          const _MetricRow(
-                            icon: Icons.bolt_outlined, iconBg: Color(0xFFFFF8E1), iconColor: Color(0xFFFFC107),
-                            label: 'Energy', score: 79, scoreColor: Color(0xFFFFC107),
-                            subtitle: 'Strong vocal projection', barColor: Color(0xFFFFC107),
-                            feedback: 'Good energy level.',
-                          ),
-                        ],
-                      ),
+                    // ── Breakdown Cards ──
+                    _buildBreakdownCard(
+                      icon: Icons.volume_up, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
+                      title: 'Pace', subtitle: '$wpmDisplay words per minute',
+                      score: paceScore, scoreColor: _getScoreColor(paceScore),
+                      progress: (paceScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(paceScore),
+                      feedback: paceFb,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBreakdownCard(
+                      icon: Icons.chat_bubble_outline, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
+                      title: 'Clarity', subtitle: '$fillerDisplay filler words detected',
+                      score: clarityScore, scoreColor: _getScoreColor(clarityScore),
+                      progress: (clarityScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(clarityScore),
+                      feedback: clarityFb,
+                    ),
+                    const SizedBox(height: 10),
+                    _buildBreakdownCard(
+                      icon: Icons.bolt, iconColor: Colors.orange, iconBg: const Color(0xFFFFF3E0),
+                      title: 'Energy', subtitle: 'Vocal projection',
+                      score: energyScore, scoreColor: _getScoreColor(energyScore),
+                      progress: (energyScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(energyScore),
+                      feedback: energyFb,
                     ),
 
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 30),
 
-                    // ── Practice Again ──
+                    // ── Action Buttons ──
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -622,10 +753,7 @@ class SessionResultsPage extends StatelessWidget {
                         child: const Text('Practice Again', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
-                    // ── Back to Home ──
                     SizedBox(
                       width: double.infinity,
                       height: 52,
@@ -645,87 +773,62 @@ class SessionResultsPage extends StatelessWidget {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        selectedItemColor: const Color(0xFF3F7CF4),
-        unselectedItemColor: Colors.grey,
-        currentIndex: 1,
-        items: const [
-          BottomNavigationBarItem(icon: Icon(Icons.home_outlined), label: 'Home'),
-          BottomNavigationBarItem(icon: Icon(Icons.mic), label: 'Practice'),
-          BottomNavigationBarItem(icon: Icon(Icons.bar_chart), label: 'Progress'),
-        ],
-      ),
     );
   }
-}
 
-// ─── Metric Row Widget (UNCHANGED) ────────────────────────────────────────────
-
-class _MetricRow extends StatelessWidget {
-  final IconData icon;
-  final Color iconBg;
-  final Color iconColor;
-  final String label;
-  final int score;
-  final Color scoreColor;
-  final String subtitle;
-  final Color barColor;
-  final String feedback;
-
-  const _MetricRow({
-    required this.icon, required this.iconBg, required this.iconColor,
-    required this.label, required this.score, required this.scoreColor,
-    required this.subtitle, required this.barColor, required this.feedback,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Row(
-          children: [
-            Container(
-              width: 38, height: 38,
-              decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-              child: Icon(icon, color: iconColor, size: 20),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF1A1A2E))),
-                      Text('$score', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: scoreColor)),
-                    ],
-                  ),
-                  const SizedBox(height: 2),
-                  Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 11)),
-                ],
+  Widget _buildBreakdownCard({
+    required IconData icon, required Color iconColor, required Color iconBg,
+    required String title, required String subtitle, required int score,
+    required Color scoreColor, required double progress, required Color barColor, required String feedback,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white, borderRadius: BorderRadius.circular(14),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36, height: 36,
+                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
+                child: Icon(icon, color: iconColor, size: 20),
               ),
-            ),
-          ],
-        ),
-        const SizedBox(height: 10),
-        ClipRRect(
-          borderRadius: BorderRadius.circular(4),
-          child: LinearProgressIndicator(
-            value: score / 100, backgroundColor: Colors.grey.shade100, color: barColor, minHeight: 7,
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A2E))),
+                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+              ),
+              Text('$score', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 24)),
+            ],
           ),
-        ),
-        const SizedBox(height: 7),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(Icons.check, size: 13, color: barColor),
-            const SizedBox(width: 5),
-            Expanded(child: Text(feedback, style: const TextStyle(fontSize: 11, color: Colors.black54))),
-          ],
-        ),
-      ],
+          const SizedBox(height: 14),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation(barColor), minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(score == 0 ? Icons.hourglass_empty : Icons.check, size: 14, color: score == 0 ? Colors.grey : barColor),
+              const SizedBox(width: 6),
+              Expanded(child: Text(feedback, style: const TextStyle(fontSize: 12, color: Colors.black54))),
+            ],
+          ),
+        ],
+      ),
     );
   }
 }

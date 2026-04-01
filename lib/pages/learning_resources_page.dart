@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'package:ispeak/config/api_config.dart';
 import 'package:ispeak/pages/time_challenge_page.dart';
+import 'package:ispeak/pages/script_practice_page.dart'; // <-- ADDED THIS IMPORT!
 
 enum _Tab { scripts, challenges, guidedTasks }
 
@@ -224,8 +225,13 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           difficulty: _mapDifficulty(scriptData['difficulty']),
           language: scriptData['language'] ?? 'English',
           onTap: () {
-            // TODO: Pass the dynamic `scriptData` to your ScriptDetailPage
-            print("Tapped script: ${scriptData['title']}");
+            // FIX: Actually navigate to the Script Detail Page and pass the data!
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => ScriptDetailPage(script: scriptData),
+              ),
+            );
           },
         ),
       );
@@ -245,8 +251,20 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           difficulty: _mapDifficulty(challengeData['difficulty']),
           targetWpm: challengeData['targetMetric'] ?? '120 WPM',
           onTap: () {
-            // TODO: Pass the dynamic `challengeData` to your TimedChallengePage
-            print("Tapped challenge: ${challengeData['title']}");
+            // FIX: Actually navigate to the Timed Challenge Page and pass the data!
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => TimedChallengePage(
+                  challenge: challengeData,
+                  onBack: () => Navigator.pop(context),
+                  onBackToHome: () {
+                    Navigator.pop(context); // Pop challenge
+                    if (widget.onBack != null) widget.onBack!(); // Go back to dashboard
+                  },
+                ),
+              ),
+            );
           },
         ),
       );
@@ -266,7 +284,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           category: taskData['category'] ?? 'General',
           icon: _mapIcon(taskData['iconName']),
           onTap: () {
-            // TODO: Pass the dynamic `taskData` to your GuidedTaskDetailPage
+            // Placeholder: Add Guided Task navigation here when that page is built!
             print("Tapped task: ${taskData['title']}");
           },
         ),
