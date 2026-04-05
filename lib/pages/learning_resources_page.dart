@@ -9,8 +9,9 @@ enum _Tab { scripts, challenges, guidedTasks }
 
 class LearningResourcesScreen extends StatefulWidget {
   final VoidCallback? onBack;
+  final String userId; // <-- FIX APPLIED HERE
 
-  const LearningResourcesScreen({super.key, this.onBack});
+  const LearningResourcesScreen({super.key, required this.userId, this.onBack});
 
   @override
   State<LearningResourcesScreen> createState() =>
@@ -226,7 +227,10 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ScriptDetailPage(script: scriptData)),
+              MaterialPageRoute(builder: (_) => ScriptDetailPage(
+                script: scriptData,
+                userId: widget.userId, // <-- FIX APPLIED HERE
+              )),
             );
           },
         ),
@@ -252,6 +256,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
               MaterialPageRoute(
                 builder: (_) => TimedChallengePage(
                   challenge: challengeData,
+                  userId: widget.userId, // <-- FIX APPLIED HERE
                   onBack: () => Navigator.pop(context),
                   onBackToHome: () {
                     Navigator.pop(context);

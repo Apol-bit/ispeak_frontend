@@ -41,9 +41,9 @@ class _DashBoardPageState extends State<DashBoardPage> {
     final double score = double.tryParse(scoreValue.toString()) ?? 0;
     if (score == 0) return Colors.grey; 
     if (score >= 90) return const Color(0xFF3FBD7A); 
-    if (score >= 75) return const Color(0xFF3F7CF4); 
+    if (score >= 75) return const Color(0xFF3F7CF4);
     if (score >= 60) return const Color(0xFFF5A623); 
-    return const Color(0xFFEF4444);                
+    return const Color(0xFFEF4444);
   }
 
   Future<void> _fetchDashboardData() async {
@@ -55,7 +55,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
         final data = jsonDecode(statsRes.body);
         final overallStats = data['overallStats'] ?? {};
         final sessions = data['sessions'] as List<dynamic>? ?? [];
-
+        
         // --- TRUE CONTINUOUS STREAK ALGORITHM ---
         Set<DateTime> uniqueDays = {};
         for (var s in sessions) {
@@ -70,10 +70,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
         today = DateTime(today.year, today.month, today.day);
 
         int currentStreak = 0;
-
         if (sortedDays.isNotEmpty) {
           DateTime lastActive = sortedDays.first;
-          
           if (today.difference(lastActive).inDays <= 1) {
             currentStreak = 1;
             DateTime expectedDay = lastActive.subtract(const Duration(days: 1));
@@ -83,14 +81,13 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 currentStreak++;
                 expectedDay = expectedDay.subtract(const Duration(days: 1));
               } else {
-                break; 
+                break;
               }
             }
           }
         }
 
         int overallScore = (overallStats['avgScore'] ?? 0).toInt();
-
         _userStats = {
           'totalSessions': overallStats['totalSessions'] ?? 0,
           'avgScore': overallScore,
@@ -135,7 +132,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
   Widget _headerWithOverlappingCard(BuildContext context) {
     final double topPadding = MediaQuery.of(context).padding.top;
-
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -158,7 +154,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 ],
               ),
               GestureDetector(
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId),)),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId))),
                 child: const CircleAvatar(
                   radius: 24,
                   backgroundColor: Colors.white,
@@ -244,7 +240,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
      return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
-        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LearningResourcesScreen(onBack: () => Navigator.of(context).pop()))),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LearningResourcesScreen(
+          userId: widget.userId, // <-- FIX APPLIED HERE
+          onBack: () => Navigator.of(context).pop()
+        ))),
         child: Container(
           width: double.infinity,
           padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
@@ -285,7 +284,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
           ..._recentSessionsList.map((session) {
             String rawDate = session['createdAt'] ?? '';
             String shortDate = rawDate.isNotEmpty ? rawDate.substring(0, 10) : 'Unknown Date';
-            
             int score = (session['overallScore'] ?? 0).toInt();
 
             return GestureDetector(
@@ -300,7 +298,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
                       widget.onStartPractice();
                     }
                   ))
-                ).then((_) => _fetchDashboardData()); 
+                ).then((_) => _fetchDashboardData());
               },
               child: _SessionCard(
                 date: shortDate,
@@ -309,7 +307,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 clarity: '${session['clarityScore'] ?? 0}%',
                 energy: '${session['energyScore'] ?? 0}%',
               ),
-            ); 
+            );
           }),
         ],
       ),
@@ -349,7 +347,7 @@ class _SessionCard extends StatelessWidget {
   final String energy;
 
   const _SessionCard({required this.date, required this.score, required this.pace, required this.clarity, required this.energy});
-
+  
   Color get _scoreColor {
     final s = int.tryParse(score) ?? 0;
     if (s == 0) return Colors.grey;
@@ -397,7 +395,7 @@ class _Metric extends StatelessWidget {
   final String label;
   final String value;
   const _Metric({required this.label, required this.value});
-
+  
   @override
   Widget build(BuildContext context) {
     return Column(
