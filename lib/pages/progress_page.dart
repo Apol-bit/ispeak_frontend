@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart'; // Required for SystemUI adjustments
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart'; 
 import 'result_page.dart'; 
@@ -181,119 +182,128 @@ class _ProgressPageState extends State<ProgressPage> {
     final accentColor = isEnglish ? const Color(0xFF3F7CF4) : const Color(0xFFF5A623);
     final bgColor = isEnglish ? const Color(0xFFF0F4FF) : const Color(0xFFFFF8EE);
 
-    return Scaffold(
-      backgroundColor: const Color(0xFFF8F9FB),
-      body: GestureDetector(
-        onTap: () => setState(() => _tooltipDayIndex = null),
-        child: RefreshIndicator(
-          onRefresh: _fetchUserProgress,
-          child: SingleChildScrollView(
-            physics: const AlwaysScrollableScrollPhysics(),
-            padding: const EdgeInsets.only(bottom: 120),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Header 
-                Container(
-                  width: double.infinity,
-                  decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [accentColor, accentColor.withOpacity(0.8)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
+    final double topPadding = MediaQuery.of(context).padding.top;
+
+    return AnnotatedRegion<SystemUiOverlayStyle>(
+      // Forces white icons over the blue gradient header
+      value: SystemUiOverlayStyle.light.copyWith(
+        statusBarColor: Colors.transparent,
+      ),
+      child: Scaffold(
+        backgroundColor: const Color(0xFFF8F9FB),
+        body: GestureDetector(
+          onTap: () => setState(() => _tooltipDayIndex = null),
+          child: RefreshIndicator(
+            onRefresh: _fetchUserProgress,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.only(bottom: 120),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // --- EDGE TO EDGE HEADER ---
+                  Container(
+                    width: double.infinity,
+                    decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [accentColor, accentColor.withOpacity(0.8)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
                         ),
-                      ),
-                      padding: const EdgeInsets.fromLTRB(24, 60, 24, 32),
-                      child: const Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Your Progress', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
-                          SizedBox(height: 8),
-                          Text('Track your improvement over time', style: TextStyle(color: Colors.white70, fontSize: 14)),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-                    _buildWeeklySummary(accentColor),
-                    const SizedBox(height: 20),
-
-                    // Performance Trends
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: _cardDecoration(),
-                        child: Column(
+                        // Top padding pushes text below the status bar, but background stretches to top edge
+                        padding: EdgeInsets.fromLTRB(24, topPadding + 20, 24, 32),
+                        child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Performance Trends', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
-                            const SizedBox(height: 20),
-                            _perfRow('Pace', 'Steady improvement in rate', 0.0, '+0%', accentColor), 
-                            const SizedBox(height: 18),
-                            _perfRow('Clarity', 'Clear and articulate delivery', 0.0, '+0%', accentColor),
-                            const SizedBox(height: 18),
-                            _perfRow('Energy', 'Consistently high energy', 0.0, '+0%', accentColor),
+                            Text('Your Progress', style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.w800)),
+                            SizedBox(height: 8),
+                            Text('Track your improvement over time', style: TextStyle(color: Colors.white70, fontSize: 14)),
                           ],
                         ),
                       ),
-                    ),
-
-                    const SizedBox(height: 20),
-                    _buildSkillsBreakdown(accentColor, bgColor, isEnglish, skills, overall),
-                    const SizedBox(height: 20),
-                    _buildDailyChart(accentColor),
-                    const SizedBox(height: 20),
-
-                    // Dynamic Session History
-                    Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text('Session History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                          const SizedBox(height: 14),
-                          
-                          if (_isLoading)
-                            const Center(child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()))
-                          else if (_realSessions.isEmpty)
-                            const Center(child: Padding(padding: EdgeInsets.all(20.0), child: Text("No sessions recorded yet.")))
-                          else
-                            ..._realSessions.asMap().entries.map((entry) {
-                              int index = entry.key;
-                              var session = entry.value;
-                              
-                              int score = (session['overallScore'] ?? 0).toInt();
-                              String dateStr = _formatDate(session['createdAt']);
-
-                              return Padding(
-                                padding: const EdgeInsets.only(bottom: 10),
-                                child: _historyCard(
-                                  'Session #${_realSessions.length - index}', 
-                                  dateStr, 
-                                  '$score', 
-                                  accentColor,
-                                  () {
-                                    Navigator.push(
-                                      context,
-                                      MaterialPageRoute(builder: (context) => ResultPage(
-                                        sessionData: session,
-                                        onBackToHome: () => Navigator.pop(context),
-                                      ))
-                                    ).then((_) => _fetchUserProgress());
-                                  }
-                                ),
-                              );
-                            }).toList(),
-                        ],
+      
+                      const SizedBox(height: 20),
+                      _buildWeeklySummary(accentColor),
+                      const SizedBox(height: 20),
+      
+                      // Performance Trends
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Container(
+                          padding: const EdgeInsets.all(20),
+                          decoration: _cardDecoration(),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('Performance Trends', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
+                              const SizedBox(height: 20),
+                              _perfRow('Pace', 'Steady improvement in rate', 0.0, '+0%', accentColor), 
+                              const SizedBox(height: 18),
+                              _perfRow('Clarity', 'Clear and articulate delivery', 0.0, '+0%', accentColor),
+                              const SizedBox(height: 18),
+                              _perfRow('Energy', 'Consistently high energy', 0.0, '+0%', accentColor),
+                            ],
+                          ),
+                        ),
                       ),
-                    ),
-                  ],
+      
+                      const SizedBox(height: 20),
+                      _buildSkillsBreakdown(accentColor, bgColor, isEnglish, skills, overall),
+                      const SizedBox(height: 20),
+                      _buildDailyChart(accentColor),
+                      const SizedBox(height: 20),
+      
+                      // Dynamic Session History
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text('Session History', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                            const SizedBox(height: 14),
+                            
+                            if (_isLoading)
+                              const Center(child: Padding(padding: EdgeInsets.all(20.0), child: CircularProgressIndicator()))
+                            else if (_realSessions.isEmpty)
+                              const Center(child: Padding(padding: EdgeInsets.all(20.0), child: Text("No sessions recorded yet.")))
+                            else
+                              ..._realSessions.asMap().entries.map((entry) {
+                                int index = entry.key;
+                                var session = entry.value;
+                                
+                                int score = (session['overallScore'] ?? 0).toInt();
+                                String dateStr = _formatDate(session['createdAt']);
+      
+                                return Padding(
+                                  padding: const EdgeInsets.only(bottom: 10),
+                                  child: _historyCard(
+                                    'Session #${_realSessions.length - index}', 
+                                    dateStr, 
+                                    '$score', 
+                                    accentColor,
+                                    () {
+                                      Navigator.push(
+                                        context,
+                                        MaterialPageRoute(builder: (context) => ResultPage(
+                                          sessionData: session,
+                                          onBackToHome: () => Navigator.pop(context),
+                                        ))
+                                      ).then((_) => _fetchUserProgress());
+                                    }
+                                  ),
+                                );
+                              }).toList(),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ),
-        );
+        ),
+      ),
+    );
   }
 
   BoxDecoration _cardDecoration() {
@@ -322,7 +332,7 @@ class _ProgressPageState extends State<ProgressPage> {
             const SizedBox(height: 16),
             Row(
               children: List.generate(7, (index) {
-                const labels = ['M', 'T', 'W', 'T', 'F', 'ST', 'S'];
+                const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
                 final bool done = _activeDays.contains(index + 1); 
                 return Expanded(
                   child: Column(
