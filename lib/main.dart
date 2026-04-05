@@ -153,6 +153,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         onPracticeAgain: () => setState(() => _currentIndex = 1),
       ),
       LearningResourcesScreen(
+        userId: widget.userId,
         onBack: () => setState(() => _currentIndex = 0),
       ),
     ];
