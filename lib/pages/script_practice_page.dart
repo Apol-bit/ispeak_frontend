@@ -6,12 +6,12 @@ import 'package:http/http.dart' as http;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/api_config.dart';
+import 'result_page.dart'; // Unified Result Page
 
-// ─── Script Detail Page (NOW POWERED BY MONGODB JSON) ─────────────────────────
-
+// ─── Script Detail Page ───────────────────────────────────────────────────────
 class ScriptDetailPage extends StatelessWidget {
   final dynamic script;
-  final String? userId; // Passed down to attach to the audio recording
+  final String? userId; 
 
   const ScriptDetailPage({super.key, required this.script, this.userId});
 
@@ -20,9 +20,9 @@ class ScriptDetailPage extends StatelessWidget {
     final String fullContent = script['content'] ?? 'No content available for this script.';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F7),
+      backgroundColor: const Color(0xFFF0F0F3), // Matched PracticePage background
       body: SafeArea(
-        top: false, // Edge-to-edge support
+        top: false, 
         child: Column(
           children: [
             _buildHeader(context),
@@ -34,11 +34,7 @@ class ScriptDetailPage extends StatelessWidget {
                   children: [
                     const Text(
                       'Full Script',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Color(0xFF1A1A2E),
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A2E)),
                     ),
                     const SizedBox(height: 12),
                     Container(
@@ -46,17 +42,11 @@ class ScriptDetailPage extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(14),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 6),
-                        ],
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
                       ),
                       child: Text(
                         fullContent,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.7,
-                          color: Colors.black87,
-                        ),
+                        style: const TextStyle(fontSize: 14, height: 1.7, color: Colors.black87),
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -68,27 +58,18 @@ class ScriptDetailPage extends StatelessWidget {
                       child: ElevatedButton.icon(
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFF3F7CF4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(30)),
                           elevation: 0,
                         ),
                         icon: const Icon(Icons.mic, color: Colors.white, size: 18),
                         label: const Text(
                           'Practice with this Script',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                          ),
+                          style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15),
                         ),
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) => ScriptPracticePage(
-                              script: script, 
-                              userId: userId,
-                            ),
+                            builder: (_) => ScriptPracticePage(script: script, userId: userId),
                           ),
                         ),
                       ),
@@ -108,18 +89,12 @@ class ScriptDetailPage extends StatelessWidget {
     final duration = '${script['estimatedMinutes'] ?? 0} min';
     final level = script['difficulty'] ?? 'Beginner';
     final language = script['language'] ?? 'English';
-    
     final double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
       width: double.infinity,
-      // Same padding style as the Dashboard/Resources header
       padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 20),
-      decoration: const BoxDecoration(
-        color: Color(0xFF3F7CF4),
-        // MODIFICATION: Removed the curved corners (borderRadius property).
-        // It now defaults to a straight rectangle, matching the Dashboard style.
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -134,19 +109,9 @@ class ScriptDetailPage extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            title,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
-          Text(
-            '$duration • $level • $language',
-            style: const TextStyle(color: Colors.white70, fontSize: 12),
-          ),
+          Text('$duration • $level • $language', style: const TextStyle(color: Colors.white70, fontSize: 12)),
         ],
       ),
     );
@@ -158,10 +123,7 @@ class ScriptDetailPage extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFFE3F2FD),
-        borderRadius: BorderRadius.circular(12),
-      ),
+      decoration: BoxDecoration(color: const Color(0xFFE3F2FD), borderRadius: BorderRadius.circular(12)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -169,33 +131,21 @@ class ScriptDetailPage extends StatelessWidget {
             children: [
               Icon(Icons.info_outline, size: 18, color: Color(0xFF3F7CF4)),
               SizedBox(width: 8),
-              Text(
-                'Tips',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF3F7CF4),
-                ),
-              ),
+              Text('Tips', style: TextStyle(fontWeight: FontWeight.bold, color: Color(0xFF3F7CF4))),
             ],
           ),
           const SizedBox(height: 8),
-          ...tips.map(
-            (tip) => Padding(
-              padding: const EdgeInsets.only(bottom: 4),
-              child: Text(
-                '• $tip',
-                style: const TextStyle(fontSize: 12, color: Colors.black87),
-              ),
-            ),
-          ),
+          ...tips.map((tip) => Padding(
+            padding: const EdgeInsets.only(bottom: 4),
+            child: Text('• $tip', style: const TextStyle(fontSize: 12, color: Colors.black87)),
+          )),
         ],
       ),
     );
   }
 }
 
-// ─── Script Practice Page ─────────────────────────────────────────────────────
-
+// ─── Script Practice Page (CLEAN UI) ──────────────────────────────────────────
 enum PracticeStatus { ready, recording, paused }
 
 class ScriptPracticePage extends StatefulWidget {
@@ -243,7 +193,6 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         }
 
         setState(() => _status = PracticeStatus.recording);
-        
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (mounted) setState(() => _seconds++);
         });
@@ -266,8 +215,6 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       final file = File(_audioPath!);
       if (await file.exists()) await file.delete();
     }
-    
-    // FIX: Safety check for async operation!
     if (!mounted) return; 
 
     setState(() {
@@ -283,12 +230,10 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     
     try {
       final finalPath = await _audioRecorder.stop();
-      
       if (finalPath != null) {
         var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
         
         request.fields['userId'] = widget.userId ?? 'test_user';
-        // Scripts have a fixed language, pass it directly to backend
         request.fields['language'] = widget.script['language'] ?? 'English'; 
         request.fields['resourceId'] = widget.script['_id'] ?? 'unknown'; 
         
@@ -299,15 +244,16 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
-          debugPrint("AI Worker Response: $resultData"); 
-          
           if (mounted) {
-            Navigator.of(context).pushReplacement(
+            Navigator.of(context).push( // FIX: Using push() here
               MaterialPageRoute(
-                builder: (_) => SessionResultsPage(
-                  script: widget.script,
-                  duration: _formatTime(_seconds),
-                  sessionData: resultData, // Real AI Data
+                builder: (_) => ResultPage(
+                  sessionData: resultData,
+                  onBackToHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+                  onPracticeAgain: () {
+                    Navigator.pop(context); // Pops the ResultPage
+                    _reset(); // Resets the ScriptPracticePage
+                  }, 
                 ),
               ),
             );
@@ -317,16 +263,15 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         }
       }
     } catch (e) {
-      debugPrint("Error uploading: $e");
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection Error')));
     }
     setState(() => _isUploading = false);
   }
 
-  String _formatTime(int s) {
-    final m = (s ~/ 60).toString().padLeft(2, '0');
-    final sec = (s % 60).toString().padLeft(2, '0');
-    return '$m:$sec';
+  String get _time {
+    final m = (_seconds ~/ 60).toString().padLeft(2, '0');
+    final s = (_seconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
   }
 
   @override
@@ -337,15 +282,16 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     final content = widget.script['content'] ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F7),
+      backgroundColor: const Color(0xFFF0F0F3), // Matched Background
       body: SafeArea(
-        top: false, // Edge-to-edge UI
+        top: false, 
         child: Column(
           children: [
             _buildHeader(context),
             Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(20, 20, 20, 20),
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                 child: Column(
                   children: [
                     // ── Script Preview Card ──
@@ -354,21 +300,12 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 8),
-                        ],
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text(
-                            title,
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
-                              color: Color(0xFF1A1A2E),
-                            ),
-                          ),
+                          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1A2E))),
                           const SizedBox(height: 8),
                           Wrap(
                             spacing: 8,
@@ -382,110 +319,23 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                             content,
                             maxLines: 5,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              color: Colors.black87,
-                              height: 1.5,
-                              fontSize: 13,
-                            ),
+                            style: const TextStyle(color: Colors.black87, height: 1.5, fontSize: 13),
                           ),
                         ],
                       ),
                     ),
 
-                    const Spacer(),
+                    const SizedBox(height: 30),
 
-                    // ── Record Button ──
-                    GestureDetector(
-                      onTap: _isUploading ? null : () {
-                        if (_status == PracticeStatus.ready) _start();
-                        else if (_status == PracticeStatus.recording) _pause();
-                        else _start();
-                      },
-                      child: Container(
-                        width: 112,
-                        height: 112,
-                        decoration: BoxDecoration(
-                          color: _status == PracticeStatus.recording
-                              ? Colors.red.shade100
-                              : const Color(0xFFDCEAFD),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Center(
-                          child: Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: _status == PracticeStatus.recording
-                                  ? Colors.redAccent
-                                  : const Color(0xFF3F7CF4),
-                              shape: BoxShape.circle,
-                            ),
-                            child: Icon(
-                              _status == PracticeStatus.recording ? Icons.pause : Icons.mic,
-                              color: Colors.white,
-                              size: 36,
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
+                    // ── CLEAN RECORD CARD ──
+                    _buildRecordCard(),
 
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 40),
 
-                    // ── Status Text ──
-                    Text(
-                      _status == PracticeStatus.ready
-                          ? 'Ready to Record'
-                          : _status == PracticeStatus.recording
-                              ? 'Recording...'
-                              : 'Paused',
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 16,
-                        color: Color(0xFF1A1A2E),
-                      ),
-                    ),
-
-                    // ── Timer ──
-                    Text(
-                      _formatTime(_seconds),
-                      style: const TextStyle(
-                        fontSize: 44,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF3F7CF4),
-                      ),
-                    ),
-
-                    const Spacer(),
-
-                    // ── Finish Button (paused only) ──
-                    if (_status == PracticeStatus.paused) ...[
-                      SizedBox(
-                        width: double.infinity,
-                        height: 52,
-                        child: ElevatedButton(
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF3F7CF4),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                            elevation: 0,
-                          ),
-                          onPressed: _isUploading ? null : _finishSession,
-                          child: _isUploading 
-                            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                            : const Text(
-                                'Finish & Analyze Speech',
-                                style: TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 15,
-                                ),
-                              ),
-                        ),
-                      ),
-                    ] else
-                      const SizedBox(height: 52),
+                    if (_status == PracticeStatus.paused) 
+                      _buildFinishButton(),
+                      
+                    const SizedBox(height: 40),
                   ],
                 ),
               ),
@@ -496,9 +346,66 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     );
   }
 
+  Widget _buildRecordCard() {
+    final isRecording = _status == PracticeStatus.recording;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 5))],
+      ),
+      child: Column(
+        children: [
+          GestureDetector(
+            onTap: _isUploading ? null : () {
+              if (_status == PracticeStatus.ready) {
+                _start();
+              } else if (_status == PracticeStatus.recording) _pause();
+              else _start();
+            },
+            child: CircleAvatar(
+              radius: 50,
+              backgroundColor: isRecording ? Colors.redAccent : const Color(0xFF3F7CF4),
+              child: Icon(isRecording ? Icons.pause : Icons.mic, color: Colors.white, size: 40),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            _status == PracticeStatus.ready ? 'Ready to Record' : _status == PracticeStatus.recording ? 'Recording...' : 'Paused',
+            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
+          ),
+          const SizedBox(height: 12),
+          Text(_time, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Color(0xFF3F7CF4))),
+          const SizedBox(height: 10),
+          if (_status == PracticeStatus.paused && !_isUploading)
+            TextButton(onPressed: _reset, child: const Text("Reset Session", style: TextStyle(color: Colors.redAccent))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFinishButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF3F7CF4),
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          elevation: 4,
+        ),
+        onPressed: _isUploading ? null : _finishSession, 
+        child: _isUploading 
+          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+          : const Text('Finish & Analyze Speech', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      ),
+    );
+  }
+
   Widget _buildHeader(BuildContext context) {
     final double topPadding = MediaQuery.of(context).padding.top;
-    
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -525,19 +432,9 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
             ],
           ),
           const SizedBox(height: 14),
-          const Text(
-            'Script Practice',
-            style: TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 22,
-              color: Color(0xFF1A1A2E),
-            ),
-          ),
+          const Text('Script Practice', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 22, color: Color(0xFF1A1A2E))),
           const SizedBox(height: 4),
-          Text(
-            widget.script['description'] ?? 'Practice reading aloud.',
-            style: const TextStyle(color: Colors.grey, fontSize: 13),
-          ),
+          Text(widget.script['description'] ?? 'Practice reading aloud.', style: const TextStyle(color: Colors.grey, fontSize: 13)),
           const SizedBox(height: 18),
           Divider(height: 1, thickness: 1, color: Colors.grey.shade200),
         ],
@@ -548,283 +445,8 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   Widget _badge(String text, Color bg, Color textCol) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Text(
-        text,
-        style: TextStyle(color: textCol, fontSize: 11, fontWeight: FontWeight.bold),
-      ),
-    );
-  }
-}
-
-// ─── Session Results Page (NOW DYNAMIC) ───────────────────────────────────────
-
-class SessionResultsPage extends StatelessWidget {
-  final dynamic script;
-  final String duration;
-  final Map<String, dynamic>? sessionData; 
-
-  const SessionResultsPage({
-    super.key,
-    required this.script,
-    required this.duration,
-    this.sessionData,
-  });
-
-  String _monthName(int m) {
-    const months = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[m];
-  }
-
-  Color _getScoreColor(num score) {
-    if (score == 0) return Colors.grey; 
-    if (score >= 90) return const Color(0xFF3FBD7A); 
-    if (score >= 75) return const Color(0xFF3F7CF4); 
-    if (score >= 60) return const Color(0xFFF5A623); 
-    return const Color(0xFFEF4444);                  
-  }
-
-  String _getScoreLabel(num score) {
-    if (score == 0) return 'Pending AI Analysis ⏳';
-    if (score >= 90) return 'Excellent 🎉';
-    if (score >= 75) return 'Good 👍';
-    if (score >= 60) return 'Fair 😐';
-    return 'Needs Work 📈';
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final now = DateTime.now();
-    final dateStr = '${_monthName(now.month)} ${now.day}, ${now.year} • $duration duration';
-
-    // Safely extract data
-    final data = sessionData?['metrics'] ?? sessionData ?? {};
-
-    final int wpmDisplay = (data['wpmScore'] ?? data['paceWpm'] ?? 0).toInt();
-    final int fillerDisplay = (data['fillerWordCount'] ?? data['fillerCount'] ?? 0).toInt();
-    final int overallScore = (data['overallScore'] ?? 0).toInt();
-    final int paceScore = (data['paceScore'] ?? 0).toInt();
-    final int clarityScore = (data['clarityScore'] ?? 0).toInt();
-    final int energyScore = (data['energyScore'] ?? 0).toInt();
-
-    final Color overallColor = _getScoreColor(overallScore);
-    
-    final feedback = data['feedback'] ?? {};
-    final String paceFb = feedback['pace'] ?? (paceScore == 0 ? 'Awaiting AI Analysis...' : 'Good pacing.');
-    final String clarityFb = feedback['clarity'] ?? (clarityScore == 0 ? 'Awaiting AI Analysis...' : 'Minimal fillers.');
-    final String energyFb = feedback['energy'] ?? (energyScore == 0 ? 'Awaiting AI Analysis...' : 'Good energy level.');
-
-    return Scaffold(
-      backgroundColor: const Color(0xFFF2F4F7),
-      body: SafeArea(
-        top: false, // Edge-to-edge support
-        child: Column(
-          children: [
-            // ── Blue Header ──
-            Container(
-              width: double.infinity,
-              padding: EdgeInsets.fromLTRB(16, MediaQuery.of(context).padding.top + 14, 16, 22),
-              decoration: const BoxDecoration(
-                color: Color(0xFF3F7CF4),
-                // Corner rounding removed here as well for consistency.
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  GestureDetector(
-                    onTap: () => Navigator.popUntil(context, (r) => r.isFirst),
-                    child: const Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.chevron_left, color: Colors.white, size: 20),
-                        Text('Back to Home', style: TextStyle(color: Colors.white, fontSize: 14)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-                  const Text(
-                    'Session Results',
-                    style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    dateStr,
-                    style: const TextStyle(color: Colors.white70, fontSize: 14),
-                  ),
-                ],
-              ),
-            ),
-
-            // ── Scrollable Body ──
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // ── Overall Score Card ──
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 30),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
-                      ),
-                      child: Column(
-                        children: [
-                          Text(
-                            overallScore.toString(),
-                            style: TextStyle(fontSize: 56, fontWeight: FontWeight.bold, color: overallColor, height: 1),
-                          ),
-                          const SizedBox(height: 6),
-                          const Text(
-                            'Overall Score',
-                            style: TextStyle(color: Color(0xFF666680), fontSize: 15),
-                          ),
-                          const SizedBox(height: 10),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                            decoration: BoxDecoration(
-                              color: overallColor.withOpacity(0.15),
-                              borderRadius: BorderRadius.circular(20),
-                            ),
-                            child: Text(
-                              _getScoreLabel(overallScore),
-                              style: TextStyle(color: overallColor, fontWeight: FontWeight.bold, fontSize: 13),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-                    const Text(
-                      'Performance Breakdown',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // ── Breakdown Cards ──
-                    _buildBreakdownCard(
-                      icon: Icons.volume_up, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
-                      title: 'Pace', subtitle: '$wpmDisplay words per minute',
-                      score: paceScore, scoreColor: _getScoreColor(paceScore),
-                      progress: (paceScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(paceScore),
-                      feedback: paceFb,
-                    ),
-                    const SizedBox(height: 10),
-                    _buildBreakdownCard(
-                      icon: Icons.chat_bubble_outline, iconColor: const Color(0xFF3F7CF4), iconBg: const Color(0xFFE6EEFF),
-                      title: 'Clarity', subtitle: '$fillerDisplay filler words detected',
-                      score: clarityScore, scoreColor: _getScoreColor(clarityScore),
-                      progress: (clarityScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(clarityScore),
-                      feedback: clarityFb,
-                    ),
-                    const SizedBox(height: 10),
-                    _buildBreakdownCard(
-                      icon: Icons.bolt, iconColor: Colors.orange, iconBg: const Color(0xFFFFF3E0),
-                      title: 'Energy', subtitle: 'Vocal projection',
-                      score: energyScore, scoreColor: _getScoreColor(energyScore),
-                      progress: (energyScore / 100.0).clamp(0.0, 1.0), barColor: _getScoreColor(energyScore),
-                      feedback: energyFb,
-                    ),
-
-                    const SizedBox(height: 30),
-
-                    // ── Action Buttons ──
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3F7CF4),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                          elevation: 0,
-                        ),
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text('Practice Again', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 15)),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: OutlinedButton(
-                        style: OutlinedButton.styleFrom(
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-                        ),
-                        onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
-                        child: const Text('Back to Home', style: TextStyle(color: Color(0xFF1A1A2E), fontWeight: FontWeight.bold, fontSize: 15)),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildBreakdownCard({
-    required IconData icon, required Color iconColor, required Color iconBg,
-    required String title, required String subtitle, required int score,
-    required Color scoreColor, required double progress, required Color barColor, required String feedback,
-  }) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white, borderRadius: BorderRadius.circular(14),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 6)],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(color: iconBg, borderRadius: BorderRadius.circular(10)),
-                child: Icon(icon, color: iconColor, size: 20),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: Color(0xFF1A1A2E))),
-                    Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                  ],
-                ),
-              ),
-              Text('$score', style: TextStyle(color: scoreColor, fontWeight: FontWeight.bold, fontSize: 24)),
-            ],
-          ),
-          const SizedBox(height: 14),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(6),
-            child: LinearProgressIndicator(
-              value: progress, backgroundColor: Colors.grey.shade200, valueColor: AlwaysStoppedAnimation(barColor), minHeight: 8,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(score == 0 ? Icons.hourglass_empty : Icons.check, size: 14, color: score == 0 ? Colors.grey : barColor),
-              const SizedBox(width: 6),
-              Expanded(child: Text(feedback, style: const TextStyle(fontSize: 12, color: Colors.black54))),
-            ],
-          ),
-        ],
-      ),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(6)),
+      child: Text(text, style: TextStyle(color: textCol, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
 }

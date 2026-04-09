@@ -14,7 +14,7 @@ class ResultPage extends StatelessWidget {
   });
 
   Color _getScoreColor(num score) {
-    if (score == 0) return Colors.grey; // Grey for pending AI data
+    if (score == 0) return Colors.grey; 
     if (score >= 90) return const Color(0xFF3FBD7A); 
     if (score >= 75) return const Color(0xFF3F7CF4); 
     if (score >= 60) return const Color(0xFFF5A623); 
@@ -54,11 +54,12 @@ class ResultPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   GestureDetector(
-                    onTap: onBackToHome,
+                    // FIX: Use onPracticeAgain (which just pops) for the top-left back button
+                    onTap: onPracticeAgain ?? onBackToHome,
                     child: const Row(
                       children: [
                         Icon(Icons.arrow_back_ios, color: Colors.white, size: 16),
-                        Text('Back to Home', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
+                        Text('Back', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.w600)),
                       ],
                     ),
                   ),
