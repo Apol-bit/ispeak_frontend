@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // <-- ADDED: Required for System UI controls
+import 'package:flutter/services.dart'; // Required for System UI controls
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'pages/dashboard_page.dart';
@@ -16,19 +16,18 @@ import 'config/api_config.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // --- ADDED: EDGE-TO-EDGE UI CONFIGURATION ---
+  // --- EDGE-TO-EDGE UI CONFIGURATION ---
   // This tells the OS to draw your app behind the status and navigation bars.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent, // Transparent top bar
-      statusBarIconBrightness: Brightness.light, // White icons (battery/wifi) to contrast with your blue headers
-      systemNavigationBarColor: Colors.transparent, // Transparent bottom swipe pill area
+      statusBarIconBrightness: Brightness.light, // White icons to contrast with blue headers
+      systemNavigationBarColor: Colors.transparent, // Transparent bottom swipe/button area
       systemNavigationBarIconBrightness: Brightness.dark, 
     ),
   );
-  // ---------------------------------------------
 
   runApp(const MyApp());
 }
@@ -159,7 +158,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      extendBody: true, // <-- This is what allows your UI to flow under the navigation bar!
+      extendBody: true, // Allows UI to flow under the navigation bar
       resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFFF5F5F5),
       body: IndexedStack(
@@ -187,14 +186,19 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
               clipBehavior: Clip.antiAlias,
               color: Colors.white,
               elevation: 10,
-              height: 70,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildNavItem(Icons.home, 'Home', 0),
-                  const SizedBox(width: 48),
-                  _buildNavItem(Icons.show_chart, 'Progress', 2),
-                ],
+              // height: 70, <-- REMOVED so it flexes dynamically
+              child: SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      _buildNavItem(Icons.home, 'Home', 0),
+                      const SizedBox(width: 48),
+                      _buildNavItem(Icons.show_chart, 'Progress', 2),
+                    ],
+                  ),
+                ),
               ),
             ),
     );
