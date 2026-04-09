@@ -17,14 +17,13 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   // --- EDGE-TO-EDGE UI CONFIGURATION ---
-  // This tells the OS to draw your app behind the status and navigation bars.
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
   
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, // Transparent top bar
-      statusBarIconBrightness: Brightness.light, // White icons to contrast with blue headers
-      systemNavigationBarColor: Colors.transparent, // Transparent bottom swipe/button area
+      statusBarColor: Colors.transparent, 
+      statusBarIconBrightness: Brightness.light, 
+      systemNavigationBarColor: Colors.transparent, 
       systemNavigationBarIconBrightness: Brightness.dark, 
     ),
   );
@@ -86,7 +85,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     super.dispose();
   }
 
-  // Called every time the app comes back to the foreground
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (state == AppLifecycleState.resumed) {
@@ -94,7 +92,6 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  // Hits the server and kicks banned users out immediately
   Future<void> _checkIfStillActive() async {
     try {
       final response = await http.get(
@@ -158,7 +155,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      extendBody: true, // Allows UI to flow under the navigation bar
+      extendBody: true, 
       resizeToAvoidBottomInset: false,
       backgroundColor: const Color(0xFFF5F5F5),
       body: IndexedStack(
@@ -181,21 +178,22 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       bottomNavigationBar: hideBars
           ? null
           : BottomAppBar(
+              // UNIVERSAL FIX 1: Override Material 3's sneaky default padding
+              padding: EdgeInsets.zero, 
               shape: const CircularNotchedRectangle(),
               notchMargin: 8,
               clipBehavior: Clip.antiAlias,
               color: Colors.white,
               elevation: 10,
-              // height: 70, <-- REMOVED so it flexes dynamically
               child: SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.only(top: 8.0, bottom: 4.0),
+                child: SizedBox(
+                  height: 65, // Safe fixed height for the content only
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    // UNIVERSAL FIX 2: Expanded widgets automatically calculate perfect spacing on any screen
                     children: [
-                      _buildNavItem(Icons.home, 'Home', 0),
-                      const SizedBox(width: 48),
-                      _buildNavItem(Icons.show_chart, 'Progress', 2),
+                      Expanded(child: _buildNavItem(Icons.home, 'Home', 0)),
+                      const Expanded(child: SizedBox()), // Empty flexible space for the Mic button notch
+                      Expanded(child: _buildNavItem(Icons.show_chart, 'Progress', 2)),
                     ],
                   ),
                 ),
@@ -209,17 +207,21 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     return InkWell(
       onTap: () => setState(() => _currentIndex = index),
       child: Column(
-        mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           Icon(icon, size: 26, color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey),
           const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 11,
-              color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          // UNIVERSAL FIX 3: Flexible guarantees text will NEVER overflow vertically or horizontally
+          Flexible(
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
             ),
           ),
         ],
