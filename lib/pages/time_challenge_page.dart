@@ -9,7 +9,7 @@ import '../config/api_config.dart';
 import 'result_page.dart'; // Unified Result Page
 
 enum ChallengeDifficulty { beginner, intermediate, advanced }
-enum _PracticeState { ready, recording, paused }
+enum _PracticeState { ready, recording } // Removed 'paused' state
 
 class TimedChallengePage extends StatefulWidget {
   final dynamic challenge;
@@ -63,8 +63,6 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             const RecordConfig(encoder: AudioEncoder.aacLc), 
             path: _audioPath!,
           );
-        } else if (_state == _PracticeState.paused) {
-          await _audioRecorder.resume();
         }
 
         setState(() => _state = _PracticeState.recording);
@@ -75,6 +73,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             _elapsedSeconds++;
           });
           
+          // Auto-finish if time runs out
           if (_elapsedSeconds >= _durationSeconds) {
             _timer?.cancel();
             _finishSession(); 
@@ -84,12 +83,6 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
     } catch (e) {
       debugPrint("Error starting record: $e");
     }
-  }
-
-  Future<void> _pause() async {
-    _timer?.cancel();
-    await _audioRecorder.pause();
-    setState(() => _state = _PracticeState.paused);
   }
 
   Future<void> _reset() async {
@@ -129,19 +122,14 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
           if (mounted) {
-            // FIX APPLIED HERE: push instead of pushReplacement
             Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => ResultPage(
                   sessionData: resultData,
+                  onBackToHome: () => Navigator.popUntil(context, (r) => r.isFirst),
                   onPracticeAgain: () {
-                    Navigator.of(context).pop();
-                    _reset();
-                  },
-                  onBackToHome: () {
-                    Navigator.of(context).pop();
-                    widget.onBackToHome?.call();
-                    widget.onBack?.call();
+                    Navigator.pop(context); // Pops the ResultPage
+                    _reset(); // Resets the TimedChallengePage for another try
                   },
                 ),
               ),
@@ -201,7 +189,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
   @override
   Widget build(BuildContext context) {
-    final isReady     = _state == _PracticeState.ready;
+    final isReady = _state == _PracticeState.ready;
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F3), // Matched Background
@@ -233,11 +221,6 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                       _buildRecordCard(),
                       
                       const SizedBox(height: 40),
-
-                      if (_state == _PracticeState.paused) 
-                        _buildFinishButton(),
-                      
-                      const SizedBox(height: 40),
                     ],
                   ),
                 ),
@@ -251,6 +234,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
   Widget _buildRecordCard() {
     final isRecording = _state == _PracticeState.recording;
+    
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
@@ -264,20 +248,39 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
           GestureDetector(
             onTap: _isUploading ? null : () {
               if (_state == _PracticeState.ready) {
-                _start();
-              } else if (_state == _PracticeState.recording) _pause();
-              else _start(); 
+                _start(); // Starts the challenge
+              } else if (_state == _PracticeState.recording) {
+                _finishSession(); // User finished early! Analyze immediately.
+              }
             },
-            child: CircleAvatar(
-              radius: 50,
-              backgroundColor: isRecording ? Colors.redAccent : const Color(0xFF3F7CF4),
-              child: Icon(isRecording ? Icons.pause : Icons.mic, color: Colors.white, size: 40),
-            ),
+            child: _isUploading 
+              ? const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Color(0xFF3F7CF4),
+                  child: CircularProgressIndicator(color: Colors.white),
+                )
+              : CircleAvatar(
+                  radius: 50,
+                  backgroundColor: isRecording ? Colors.redAccent : const Color(0xFF3F7CF4),
+                  child: Icon(
+                    isRecording ? Icons.stop_rounded : Icons.mic, 
+                    color: Colors.white, 
+                    size: 40
+                  ),
+                ),
           ),
           const SizedBox(height: 24),
           Text(
-            _state == _PracticeState.ready ? 'Ready to Record' : isRecording ? 'Recording...' : 'Paused',
-            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16, color: Color(0xFF1A1A2E)),
+            _state == _PracticeState.ready 
+              ? 'Ready to Record' 
+              : _isUploading 
+                  ? 'Analyzing Speech...' 
+                  : 'Recording Live...',
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              fontSize: 16, 
+              color: isRecording ? Colors.redAccent : const Color(0xFF1A1A2E)
+            ),
           ),
           const SizedBox(height: 12),
           Text(
@@ -293,29 +296,12 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
               style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
             ),
           ],
-          if (_state == _PracticeState.paused && !_isUploading) ...[
-            const SizedBox(height: 10),
-            TextButton(onPressed: _reset, child: const Text('Reset Session', style: TextStyle(color: Colors.redAccent))),
+          
+          if (isRecording && !_isUploading) ...[
+            const SizedBox(height: 16),
+            const Text('Tap the stop button if you finish early.', style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
           ],
         ],
-      ),
-    );
-  }
-
-  Widget _buildFinishButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        style: ElevatedButton.styleFrom(
-          backgroundColor: const Color(0xFF3F7CF4),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-          elevation: 4,
-        ),
-        onPressed: _isUploading ? null : _finishSession, 
-        child: _isUploading 
-          ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-          : const Text('Finish & Analyze Speech', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
       ),
     );
   }
