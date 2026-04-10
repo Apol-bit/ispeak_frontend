@@ -29,6 +29,30 @@ class ResultPage extends StatelessWidget {
     return 'Needs Work 📈';
   }
 
+  // --- NEW: Format date and time from ISO string ---
+  String _formatDateTime(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) {
+      return 'Date Unknown';
+    }
+    try {
+      final dateTime = DateTime.parse(isoDate).toLocal();
+      final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      final month = months[dateTime.month - 1];
+      final day = dateTime.day;
+      final year = dateTime.year;
+      
+      // Format time as HH:MM AM/PM
+      final hour = dateTime.hour;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = (hour > 12) ? hour - 12 : (hour == 0 ? 12 : hour);
+      
+      return '$month $day, $year • $displayHour:$minute $period';
+    } catch (e) {
+      return 'Date Unknown';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final data = sessionData ?? {};
@@ -39,6 +63,7 @@ class ResultPage extends StatelessWidget {
     final int paceScore = (data['paceScore'] ?? 0).toInt();
     final int clarityScore = (data['clarityScore'] ?? 0).toInt();
     final int energyScore = (data['energyScore'] ?? 0).toInt();
+    final String createdAt = data['createdAt'] ?? '';
 
     final Color overallColor = _getScoreColor(overallScore);
 
@@ -64,6 +89,22 @@ class ResultPage extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 24),
+                  
+                  // --- NEW: Date and Time Display ---
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: Row(
+                      children: [
+                        Icon(Icons.calendar_today, color: Colors.white70, size: 16),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatDateTime(createdAt),
+                          style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+                        ),
+                      ],
+                    ),
+                  ),
+                  
                   Container(
                     width: double.infinity,
                     padding: const EdgeInsets.symmetric(vertical: 30),
