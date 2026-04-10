@@ -49,16 +49,16 @@ dev_dependencies:
 flutter_icons:
   android: true
   ios: true
-  image_path: "assets/images/ispeak_logo.png"
+  image_path: "assets/images/ispeak_icon_padded.png"
   min_sdk_android: 21
   adaptive_icon_background: "#FFFFFF" 
-  adaptive_icon_foreground: "assets/images/ispeak_logo.png"
+  adaptive_icon_foreground: "assets/images/ispeak_icon_padded.png"
 
 flutter_native_splash:
   color: "#F5F5F5"
-  image: assets/images/ispeak_logo.png
+  image: assets/images/ispeak_icon_padded.png
   android_12:
-    image: assets/images/ispeak_logo.png
+    image: assets/images/ispeak_icon_padded.png
     icon_background_color: "#F5F5F5"
 
   # The "flutter_lints" package below contains a set of recommended lints to
