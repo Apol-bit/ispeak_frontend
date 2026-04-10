@@ -55,7 +55,7 @@ flutter_icons:
   adaptive_icon_foreground: "assets/images/ispeak_icon_padded.png"
 
 flutter_native_splash:
-  color: "#F5F5F5"
+  color: "#FFFFFF"
   image: assets/images/ispeak_icon_padded.png
   android_12:
     image: assets/images/ispeak_icon_padded.png
