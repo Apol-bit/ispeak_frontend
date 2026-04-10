@@ -38,6 +38,7 @@ dependencies:
   record: ^6.2.0          # The engine that actually captures the audio
   path_provider: ^2.1.5   # Helps us find a safe folder to save the file
   http: ^1.6.0
+  flutter_native_splash: ^2.4.7
 
 
 dev_dependencies:
@@ -46,17 +47,26 @@ dev_dependencies:
   flutter_launcher_icons: ^0.13.1
 
 flutter_icons:
-  android: "launcher_icon"
+  android: true
   ios: true
   image_path: "assets/images/ispeak_logo.png"
   min_sdk_android: 21
+  adaptive_icon_background: "#FFFFFF" 
+  adaptive_icon_foreground: "assets/images/ispeak_logo.png"
+
+flutter_native_splash:
+  color: "#F5F5F5"
+  image: assets/images/ispeak_logo.png
+  android_12:
+    image: assets/images/ispeak_logo.png
+    icon_background_color: "#F5F5F5"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^6.0.0
+flutter_lints: ^6.0.0
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

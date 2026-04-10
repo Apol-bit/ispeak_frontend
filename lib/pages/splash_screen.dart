@@ -17,6 +17,9 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // UNIVERSAL FIX 1: Grab the exact dimensions of the phone's screen
+    final size = MediaQuery.of(context).size;
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
@@ -25,15 +28,17 @@ class SplashScreen extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const SizedBox(height: 40),
+              // UNIVERSAL FIX 2: Dynamic spacing (5% of screen height) instead of fixed pixels
+              SizedBox(height: size.height * 0.05),
 
               Hero(
                 tag: 'logo',
                 child: Image.asset(
                   'assets/images/ispeak_logo.png',
-                  height: 120,
-                  ),
+                  // UNIVERSAL FIX 3: Logo will always be exactly 15% of the screen height, never too big or small!
+                  height: size.height * 0.15, 
                 ),
+              ),
 
               const SizedBox(height: 20),
 
@@ -48,8 +53,7 @@ class SplashScreen extends StatelessWidget {
                     color: AppTheme.textPrimary,
                   ),
                 ),
-              )
-            ),
+              )),
 
               const SizedBox(height: 10),
 
@@ -59,7 +63,7 @@ class SplashScreen extends StatelessWidget {
                 style: TextStyle(fontSize: 14),
               ),
 
-              const SizedBox(height: 40),
+              SizedBox(height: size.height * 0.05),
 
               const FeatureCard(
                 icon: Icons.volume_up,
