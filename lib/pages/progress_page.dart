@@ -178,7 +178,6 @@ class _ProgressPageState extends State<ProgressPage> {
     }
   }
 
-  // --- SMART ROUTER ADDED HERE ---
 void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
   // Now this will work because backend populates the objects!
   final challengeData = session['challengeId']; 
