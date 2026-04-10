@@ -59,7 +59,7 @@ flutter_native_splash:
   image: assets/images/ispeak_icon_padded.png
   android_12:
     image: assets/images/ispeak_icon_padded.png
-    icon_background_color: "#F5F5F5"
+    icon_background_color: "#FFFFFF"
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
