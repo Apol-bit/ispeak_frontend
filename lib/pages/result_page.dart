@@ -29,7 +29,7 @@ class ResultPage extends StatelessWidget {
     return 'Needs Work 📈';
   }
 
-  // --- NEW: Format date and time from ISO string ---
+  // --- Format date and time from ISO string ---
   String _formatDateTime(String? isoDate) {
     if (isoDate == null || isoDate.isEmpty) {
       return 'Date Unknown';
@@ -79,7 +79,6 @@ class ResultPage extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   GestureDetector(
-                    // FIX: Use onPracticeAgain (which just pops) for the top-left back button
                     onTap: onPracticeAgain ?? onBackToHome,
                     child: const Row(
                       children: [
@@ -90,7 +89,7 @@ class ResultPage extends StatelessWidget {
                   ),
                   const SizedBox(height: 24),
                   
-                  // --- NEW: Date and Time Display ---
+                  // --- Date and Time Display ---
                   Padding(
                     padding: const EdgeInsets.only(bottom: 16),
                     child: Row(

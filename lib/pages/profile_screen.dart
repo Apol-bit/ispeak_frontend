@@ -73,6 +73,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final overallStats = statsData['overallStats'] ?? {};
         final sessionsList = statsData['sessions'] as List<dynamic>? ?? [];
         
+        // FIX: Properly extract totalSessions from overallStats
         sessions = overallStats['totalSessions'] ?? 0;
         avgScore = (overallStats['avgScore'] ?? 0).toInt();
 

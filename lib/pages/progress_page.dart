@@ -178,6 +178,19 @@ class _ProgressPageState extends State<ProgressPage> {
     }
   }
 
+String _formatSessionTime(String? isoDate) {
+  if (isoDate == null || isoDate.isEmpty) return 'Unknown Time';
+  try {
+    final dateTime = DateTime.parse(isoDate).toLocal();
+    final hour = dateTime.hour;
+    final minute = dateTime.minute.toString().padLeft(2, '0');
+    final period = hour >= 12 ? 'PM' : 'AM';
+    final displayHour = (hour > 12) ? hour - 12 : (hour == 0 ? 12 : hour);
+    return '$displayHour:$minute $period';
+  } catch (e) {
+    return 'Unknown Time';
+  }
+}
 void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
   // Now this will work because backend populates the objects!
   final challengeData = session['challengeId']; 
@@ -290,37 +303,39 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                             else if (_realSessions.isEmpty)
                               const Center(child: Padding(padding: EdgeInsets.all(20.0), child: Text("No sessions recorded yet.")))
                             else
-                              ..._realSessions.asMap().entries.map((entry) {
-                                int index = entry.key;
-                                var session = entry.value;
-                                
-                                int score = (session['overallScore'] ?? 0).toInt();
-                                String dateStr = _formatDate(session['createdAt']);
-      
-                                return Padding(
-                                  padding: const EdgeInsets.only(bottom: 10),
-                                  child: _historyCard(
-                                    'Session #${_realSessions.length - index}', 
-                                    dateStr, 
-                                    '$score', 
-                                    accentColor,
-                                    () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (context) => ResultPage(
-                                          sessionData: session,
-                                          onBackToHome: () => Navigator.pop(context),
-                                          // --- MISSING PROPERTY FIXED HERE ---
-                                          onPracticeAgain: () {
-                                            Navigator.pop(context); // Pops the Result Page
-                                            _routeToSpecificPractice(context, session); 
-                                          }
-                                        ))
-                                      ).then((_) => _fetchUserProgress());
-                                    }
-                                  ),
-                                );
-                              }).toList(),
+                              
+                            ..._realSessions.asMap().entries.map((entry) {
+                              int index = entry.key;
+                              var session = entry.value;
+                              
+                              int score = (session['overallScore'] ?? 0).toInt();
+                              String dateStr = _formatDate(session['createdAt']);
+                              String timeStr = _formatSessionTime(session['createdAt']);  // NEW
+
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: 10),
+                                child: _historyCard(
+                                  'Session #${_realSessions.length - index}', 
+                                  dateStr,
+                                  timeStr,  // NEW: Pass the time
+                                  '$score', 
+                                  accentColor,
+                                  () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(builder: (context) => ResultPage(
+                                        sessionData: session,
+                                        onBackToHome: () => Navigator.pop(context),
+                                        onPracticeAgain: () {
+                                          Navigator.pop(context);
+                                          _routeToSpecificPractice(context, session); 
+                                        }
+                                      ))
+                                    ).then((_) => _fetchUserProgress());
+                                  }
+                                ),
+                              );
+                            }).toList(),  
                           ],
                         ),
                       ),
@@ -852,7 +867,7 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
     );
   }
 
-  Widget _historyCard(String title, String date, String score, Color accentColor, VoidCallback onTap) {
+  Widget _historyCard(String title, String date, String time, String score, Color accentColor, VoidCallback onTap) {
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -867,6 +882,8 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                 Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                 const SizedBox(height: 4),
                 Text(date, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                const SizedBox(height: 2),
+                Text(time, style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
               ],
             ),
             Container(

@@ -48,6 +48,21 @@ class _DashBoardPageState extends State<DashBoardPage> {
     return const Color(0xFFEF4444);
   }
 
+  // --- NEW: Format session creation time ---
+  String _formatSessionTime(String? isoDate) {
+    if (isoDate == null || isoDate.isEmpty) return 'Unknown Time';
+    try {
+      final dateTime = DateTime.parse(isoDate).toLocal();
+      final hour = dateTime.hour;
+      final minute = dateTime.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      final displayHour = (hour > 12) ? hour - 12 : (hour == 0 ? 12 : hour);
+      return '$displayHour:$minute $period';
+    } catch (e) {
+      return 'Unknown Time';
+    }
+  }
+
   Future<void> _fetchDashboardData() async {
     try {
       final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'));
@@ -89,15 +104,21 @@ class _DashBoardPageState extends State<DashBoardPage> {
         }
 
         int overallScore = (overallStats['avgScore'] ?? 0).toInt();
+        // FIX: Properly extract totalSessions from overallStats
+        int totalSessions = overallStats['totalSessions'] ?? 0;
+        
         _userStats = {
-          'totalSessions': overallStats['totalSessions'] ?? 0,
+          'totalSessions': totalSessions,
           'avgScore': overallScore,
           'dayStreak': currentStreak, 
         };
+        
+        debugPrint('Dashboard Stats: totalSessions=$totalSessions, avgScore=$overallScore, dayStreak=$currentStreak');
       }
 
       if (historyRes.statusCode == 200) {
         _recentSessionsList = jsonDecode(historyRes.body);
+        debugPrint('Recent sessions count: ${_recentSessionsList.length}');
       }
 
       setState(() => _isLoading = false);
@@ -308,6 +329,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
           ..._recentSessionsList.map((session) {
             String rawDate = session['createdAt'] ?? '';
             String shortDate = rawDate.isNotEmpty ? rawDate.substring(0, 10) : 'Unknown Date';
+            
+            // NEW: Format the creation time
+            String createdTime = _formatSessionTime(rawDate);
+            
             int score = (session['overallScore'] ?? 0).toInt();
 
             return GestureDetector(
@@ -318,14 +343,15 @@ class _DashBoardPageState extends State<DashBoardPage> {
                     sessionData: session,
                     onBackToHome: () => Navigator.pop(context),
                     onPracticeAgain: () {
-                      Navigator.pop(context); // Pops the Result Page
-                      _routeToSpecificPractice(context, session); // SMART ROUTER APPLIED HERE
+                      Navigator.pop(context);
+                      _routeToSpecificPractice(context, session);
                     }
                   ))
                 ).then((_) => _fetchDashboardData());
               },
               child: _SessionCard(
                 date: shortDate,
+                createdTime: createdTime,  // NEW: Pass the time
                 score: score.toString(),
                 pace: '${session['paceScore'] ?? 0}%', 
                 clarity: '${session['clarityScore'] ?? 0}%',
@@ -365,12 +391,20 @@ class _VerticalDivider extends StatelessWidget {
 
 class _SessionCard extends StatelessWidget {
   final String date;
+  final String createdTime;  // NEW
   final String score;
   final String pace;
   final String clarity;
   final String energy;
 
-  const _SessionCard({required this.date, required this.score, required this.pace, required this.clarity, required this.energy});
+  const _SessionCard({
+    required this.date,
+    required this.createdTime,  // NEW
+    required this.score,
+    required this.pace,
+    required this.clarity,
+    required this.energy,
+  });
   
   Color get _scoreColor {
     final s = int.tryParse(score) ?? 0;
@@ -396,7 +430,14 @@ class _SessionCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(date, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black54)),
+              Column(  // NEW: Wrap date in column to add time below
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(date, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black54)),
+                  const SizedBox(height: 4),
+                  Text(createdTime, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                ],
+              ),
               Text(score, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _scoreColor)),
             ],
           ),
