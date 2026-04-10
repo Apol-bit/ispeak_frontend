@@ -1,13 +1,22 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart'; // Required for SystemUI adjustments
+import 'package:flutter/services.dart'; 
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart'; 
 import 'result_page.dart'; 
+// ADDED IMPORTS FOR SMART ROUTING
+import 'script_practice_page.dart';
+import 'time_challenge_page.dart';
 
 class ProgressPage extends StatefulWidget {
   final String userId;
-  const ProgressPage({super.key, required this.userId});
+  final VoidCallback onStartPractice; // <-- ADDED THIS SO IT CAN FALLBACK TO PRACTICE MENU
+
+  const ProgressPage({
+    super.key, 
+    required this.userId,
+    required this.onStartPractice, // <-- ADDED THIS
+  });
 
   @override
   State<ProgressPage> createState() => _ProgressPageState();
@@ -80,7 +89,6 @@ class _ProgressPageState extends State<ProgressPage> {
         double totalPace = 0, totalClarity = 0, totalEnergy = 0, totalOverall = 0;
         Set<int> newActiveDays = {};
 
-        // CURRENT WEEK LOGIC FOR CHARTS AND BUBBLES
         DateTime now = DateTime.now();
         DateTime startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
 
@@ -93,13 +101,11 @@ class _ProgressPageState extends State<ProgressPage> {
             double energy = (session['energyScore'] ?? 0).toDouble();
             double overall = (session['overallScore'] ?? 0).toDouble();
 
-            // ALL-TIME SCORES
             totalPace += pace;
             totalClarity += clarity;
             totalEnergy += energy;
             totalOverall += overall;
 
-            // THIS WEEK ONLY SCORES (For the charts and checkmarks)
             if (date.isAfter(startOfWeek) || date.isAtSameMomentAs(startOfWeek)) {
               int weekdayIndex = date.weekday - 1; 
               newActiveDays.add(date.weekday);
@@ -112,7 +118,6 @@ class _ProgressPageState extends State<ProgressPage> {
           }
         }
 
-        // Calculate weekly averages
         dayScores.forEach((day, scores) {
           weeklyAverages[day] = scores.reduce((a, b) => a + b) / scores.length;
           weeklyPace[day] = dayPace[day]!.reduce((a, b) => a + b) / dayPace[day]!.length;
@@ -120,7 +125,6 @@ class _ProgressPageState extends State<ProgressPage> {
           weeklyEnergy[day] = dayEnergy[day]!.reduce((a, b) => a + b) / dayEnergy[day]!.length;
         });
 
-        // Calculate overall all-time stats
         if (sessions.isNotEmpty) {
           int avgPace = (totalPace / sessions.length).round();
           int avgClarity = (totalClarity / sessions.length).round();
@@ -174,6 +178,23 @@ class _ProgressPageState extends State<ProgressPage> {
     }
   }
 
+  // --- SMART ROUTER ADDED HERE ---
+  void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
+    final challengeData = session['challenge'] ?? session['challengeData'];
+    if (challengeData != null && challengeData is Map) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)));
+      return;
+    }
+    
+    final scriptData = session['script'] ?? session['resource'] ?? session['scriptData'];
+    if (scriptData != null && scriptData is Map) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)));
+      return;
+    }
+    
+    widget.onStartPractice(); // Fallback
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEnglish = _isEnglishSelected;
@@ -185,7 +206,6 @@ class _ProgressPageState extends State<ProgressPage> {
     final double topPadding = MediaQuery.of(context).padding.top;
 
     return AnnotatedRegion<SystemUiOverlayStyle>(
-      // Forces white icons over the blue gradient header
       value: SystemUiOverlayStyle.light.copyWith(
         statusBarColor: Colors.transparent,
       ),
@@ -201,7 +221,6 @@ class _ProgressPageState extends State<ProgressPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // --- EDGE TO EDGE HEADER ---
                   Container(
                     width: double.infinity,
                     decoration: BoxDecoration(
@@ -211,7 +230,6 @@ class _ProgressPageState extends State<ProgressPage> {
                             end: Alignment.bottomRight,
                           ),
                         ),
-                        // Top padding pushes text below the status bar, but background stretches to top edge
                         padding: EdgeInsets.fromLTRB(24, topPadding + 20, 24, 32),
                         child: const Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -227,7 +245,6 @@ class _ProgressPageState extends State<ProgressPage> {
                       _buildWeeklySummary(accentColor),
                       const SizedBox(height: 20),
       
-                      // Performance Trends
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Container(
@@ -254,7 +271,6 @@ class _ProgressPageState extends State<ProgressPage> {
                       _buildDailyChart(accentColor),
                       const SizedBox(height: 20),
       
-                      // Dynamic Session History
                       Padding(
                         padding: const EdgeInsets.symmetric(horizontal: 16),
                         child: Column(
@@ -288,6 +304,11 @@ class _ProgressPageState extends State<ProgressPage> {
                                         MaterialPageRoute(builder: (context) => ResultPage(
                                           sessionData: session,
                                           onBackToHome: () => Navigator.pop(context),
+                                          // --- MISSING PROPERTY FIXED HERE ---
+                                          onPracticeAgain: () {
+                                            Navigator.pop(context); // Pops the Result Page
+                                            _routeToSpecificPractice(context, session); 
+                                          }
                                         ))
                                       ).then((_) => _fetchUserProgress());
                                     }

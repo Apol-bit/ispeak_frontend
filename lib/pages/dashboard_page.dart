@@ -5,6 +5,8 @@ import 'learning_resources_page.dart';
 import '../config/api_config.dart'; 
 import 'profile_screen.dart';
 import 'result_page.dart';
+import 'script_practice_page.dart';
+import 'time_challenge_page.dart';
 
 class DashBoardPage extends StatefulWidget {
   final VoidCallback onStartPractice;
@@ -56,7 +58,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
         final overallStats = data['overallStats'] ?? {};
         final sessions = data['sessions'] as List<dynamic>? ?? [];
         
-        // --- TRUE CONTINUOUS STREAK ALGORITHM ---
         Set<DateTime> uniqueDays = {};
         for (var s in sessions) {
           if (s['createdAt'] != null) {
@@ -104,6 +105,26 @@ class _DashBoardPageState extends State<DashBoardPage> {
       debugPrint("Error fetching data: $e");
       setState(() => _isLoading = false);
     }
+  }
+
+  // --- SMART ROUTER ADDED HERE ---
+  void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
+    // 1. Check if the session data contains a populated Challenge object
+    final challengeData = session['challenge'] ?? session['challengeData'];
+    if (challengeData != null && challengeData is Map) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)));
+      return;
+    }
+    
+    // 2. Check if the session data contains a populated Script object
+    final scriptData = session['script'] ?? session['resource'] ?? session['scriptData'];
+    if (scriptData != null && scriptData is Map) {
+      Navigator.push(context, MaterialPageRoute(builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)));
+      return;
+    }
+    
+    // 3. Fallback: If it's a freestyle session or the backend didn't send the full object, go to main practice tab
+    widget.onStartPractice();
   }
 
   @override
@@ -241,7 +262,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LearningResourcesScreen(
-          userId: widget.userId, // <-- FIX APPLIED HERE
+          userId: widget.userId,
           onBack: () => Navigator.of(context).pop()
         ))),
         child: Container(
@@ -294,8 +315,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
                     sessionData: session,
                     onBackToHome: () => Navigator.pop(context),
                     onPracticeAgain: () {
-                      Navigator.pop(context);
-                      widget.onStartPractice();
+                      Navigator.pop(context); // Pops the Result Page
+                      _routeToSpecificPractice(context, session); // SMART ROUTER APPLIED HERE
                     }
                   ))
                 ).then((_) => _fetchDashboardData());
