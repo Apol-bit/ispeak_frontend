@@ -179,21 +179,28 @@ class _ProgressPageState extends State<ProgressPage> {
   }
 
   // --- SMART ROUTER ADDED HERE ---
-  void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
-    final challengeData = session['challenge'] ?? session['challengeData'];
-    if (challengeData != null && challengeData is Map) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)));
-      return;
-    }
-    
-    final scriptData = session['script'] ?? session['resource'] ?? session['scriptData'];
-    if (scriptData != null && scriptData is Map) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)));
-      return;
-    }
-    
-    widget.onStartPractice(); // Fallback
+void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
+  // Now this will work because backend populates the objects!
+  final challengeData = session['challengeId']; 
+  if (challengeData != null && challengeData is Map) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)
+    ));
+    return;
   }
+  
+  final scriptData = session['resourceId'];
+  if (scriptData != null && scriptData is Map) {
+    Navigator.push(context, MaterialPageRoute(
+      builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)
+    ));
+    return;
+  }
+  
+  // Fallback
+  widget.onStartPractice(); // Fallback
+}
+ 
 
   @override
   Widget build(BuildContext context) {

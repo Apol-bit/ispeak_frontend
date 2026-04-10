@@ -107,23 +107,26 @@ class _DashBoardPageState extends State<DashBoardPage> {
     }
   }
 
-  // --- SMART ROUTER ADDED HERE ---
+  // --- FIXED SMART ROUTER ---
   void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session) {
-    // 1. Check if the session data contains a populated Challenge object
-    final challengeData = session['challenge'] ?? session['challengeData'];
+    // Now this will work because backend populates the objects!
+    final challengeData = session['challengeId']; 
     if (challengeData != null && challengeData is Map) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)));
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)
+      ));
       return;
     }
     
-    // 2. Check if the session data contains a populated Script object
-    final scriptData = session['script'] ?? session['resource'] ?? session['scriptData'];
+    final scriptData = session['resourceId'];
     if (scriptData != null && scriptData is Map) {
-      Navigator.push(context, MaterialPageRoute(builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)));
+      Navigator.push(context, MaterialPageRoute(
+        builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)
+      ));
       return;
     }
     
-    // 3. Fallback: If it's a freestyle session or the backend didn't send the full object, go to main practice tab
+    // Fallback
     widget.onStartPractice();
   }
 
