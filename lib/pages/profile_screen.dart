@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart'; 
 import '../theme/app_theme.dart';        
-import 'language_screen.dart';  
 import 'editprofile_screen.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,7 +21,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String username = "Loading...";
   String userEmail = "Loading...";
   String userInitials = "";
-  String selectedLanguage = "English";
   
   int sessions = 0;
   int avgScore = 0; 
@@ -125,19 +123,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
         userInitials = "!";
       });
     }
-  }
-
-  void _goToLanguageScreen() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const LanguageScreen()),
-    ).then((value) {
-      if (value != null) {
-        setState(() {
-          selectedLanguage = value;
-        });
-      }
-    });
   }
 
   void _goToEditProfile() {
@@ -425,15 +410,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
 
                     const SizedBox(height: 28),
-
-                    _buildOptionTile(
-                      icon: Icons.language,
-                      title: 'Language',
-                      subtitle: selectedLanguage,
-                      onTap: _goToLanguageScreen,
-                    ),
-
-                    const SizedBox(height: 12),
 
                     _buildOptionTile(
                       icon: Icons.edit,
