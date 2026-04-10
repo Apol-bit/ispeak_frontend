@@ -142,7 +142,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
           _currentIndex = 3;
         }),
       ),
-      ProgressPage(userId: widget.userId),
+      // --- FIX APPLIED HERE: Added onStartPractice ---
+      ProgressPage(
+        userId: widget.userId,
+        onStartPractice: () => setState(() => _currentIndex = 1), 
+      ),
       ResultPage(
         sessionData: _currentSessionData,
         onBackToHome: () => setState(() => _currentIndex = 0),
