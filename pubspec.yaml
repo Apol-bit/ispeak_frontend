@@ -39,7 +39,7 @@ dependencies:
   path_provider: ^2.1.5   # Helps us find a safe folder to save the file
   http: ^1.6.0
   flutter_native_splash: ^2.4.7
-
+  fl_chart: ^0.66.0
 
 dev_dependencies:
   flutter_test:
