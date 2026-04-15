@@ -374,7 +374,7 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
             const SizedBox(height: 16),
             Row(
               children: List.generate(7, (index) {
-                const labels = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+                const labels = ['M', 'T', 'W', 'TH', 'F', 'ST', 'S'];
                 final bool done = _activeDays.contains(index + 1); 
                 return Expanded(
                   child: Column(

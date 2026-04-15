@@ -57,10 +57,17 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         if (_state == _PracticeState.ready) {
           _elapsedSeconds = 0;
           final Directory tempDir = await getTemporaryDirectory();
-          _audioPath = '${tempDir.path}/ispeak_challenge_${DateTime.now().millisecondsSinceEpoch}.m4a';
           
+          // ---> AUDIO FIX: Changed .m4a to .wav
+          _audioPath = '${tempDir.path}/ispeak_challenge_${DateTime.now().millisecondsSinceEpoch}.wav';
+          
+          // ---> AUDIO FIX: Configured for Whisper AI
           await _audioRecorder.start(
-            const RecordConfig(encoder: AudioEncoder.aacLc), 
+            const RecordConfig(
+              encoder: AudioEncoder.wav,
+              sampleRate: 16000,
+              numChannels: 1,
+            ), 
             path: _audioPath!,
           );
         }

@@ -25,7 +25,6 @@ class _PracticePageState extends State<PracticePage> {
   int _seconds = 0;
   bool _isUploading = false; 
   
-  // The Language State is Back!
   bool _isEnglish = true; 
 
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -45,10 +44,15 @@ class _PracticePageState extends State<PracticePage> {
         if (_state == PracticeState.ready) {
           _seconds = 0;
           final Directory tempDir = await getTemporaryDirectory();
-          _audioPath = '${tempDir.path}/ispeak_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          _audioPath = '${tempDir.path}/ispeak_${DateTime.now().millisecondsSinceEpoch}.wav';
           
+          // Configured for Whisper AI
           await _audioRecorder.start(
-            const RecordConfig(encoder: AudioEncoder.aacLc), 
+            const RecordConfig(
+              encoder: AudioEncoder.wav,
+              sampleRate: 16000,
+              numChannels: 1,
+            ), 
             path: _audioPath!,
           );
         } else if (_state == PracticeState.paused) {
@@ -95,14 +99,13 @@ class _PracticePageState extends State<PracticePage> {
       color: const Color(0xFFF0F0F3),
       child: SafeArea(
         bottom: false,
-        child: SingleChildScrollView( // Scroll fix preserved!
+        child: SingleChildScrollView( 
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
           child: Column(
             children: [
               const SizedBox(height: 10),
               
-              // UI RESTORED: Header Row with Title and EN/FIL Toggle
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -122,7 +125,6 @@ class _PracticePageState extends State<PracticePage> {
               
               const SizedBox(height: 30),
 
-              // UI RESTORED: Dynamic Language Indicator
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
@@ -148,7 +150,8 @@ class _PracticePageState extends State<PracticePage> {
 
               const SizedBox(height: 40),
 
-              if (_state == PracticeState.paused && _seconds >= 5) 
+              // ---> CONDITION FIX: Changed to 10 seconds <---
+              if (_state == PracticeState.paused && _seconds >= 10) 
                 _finishButton(),
                 
               const SizedBox(height: 140), 
@@ -271,7 +274,6 @@ class _PracticePageState extends State<PracticePage> {
               var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
               
               request.fields['userId'] = widget.userId;
-              // Safe Local Data pass!
               request.fields['language'] = _isEnglish ? 'English' : 'Filipino'; 
               
               request.files.add(await http.MultipartFile.fromPath('audio', finalPath));

@@ -8,7 +8,6 @@ import 'package:path_provider/path_provider.dart';
 import '../config/api_config.dart';
 import 'result_page.dart'; // Unified Result Page
 
-// ─── Script Detail Page ───────────────────────────────────────────────────────
 class ScriptDetailPage extends StatelessWidget {
   final dynamic script;
   final String? userId; 
@@ -145,7 +144,6 @@ class ScriptDetailPage extends StatelessWidget {
   }
 }
 
-// ─── Script Practice Page (CLEAN UI) ──────────────────────────────────────────
 enum PracticeStatus { ready, recording, paused }
 
 class ScriptPracticePage extends StatefulWidget {
@@ -182,10 +180,16 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         if (_status == PracticeStatus.ready) {
           _seconds = 0;
           final Directory tempDir = await getTemporaryDirectory();
-          _audioPath = '${tempDir.path}/ispeak_script_${DateTime.now().millisecondsSinceEpoch}.m4a';
+          // ---> AUDIO FIX: Changed .m4a to .wav
+          _audioPath = '${tempDir.path}/ispeak_script_${DateTime.now().millisecondsSinceEpoch}.wav';
           
+          // Configured for Whisper AI
           await _audioRecorder.start(
-            const RecordConfig(encoder: AudioEncoder.aacLc), 
+            const RecordConfig(
+              encoder: AudioEncoder.wav,
+              sampleRate: 16000,
+              numChannels: 1,
+            ), 
             path: _audioPath!,
           );
         } else if (_status == PracticeStatus.paused) {
@@ -245,14 +249,14 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
           if (mounted) {
-            Navigator.of(context).push( // FIX: Using push() here
+            Navigator.of(context).push( 
               MaterialPageRoute(
                 builder: (_) => ResultPage(
                   sessionData: resultData,
                   onBackToHome: () => Navigator.popUntil(context, (r) => r.isFirst),
                   onPracticeAgain: () {
-                    Navigator.pop(context); // Pops the ResultPage
-                    _reset(); // Resets the ScriptPracticePage
+                    Navigator.pop(context); 
+                    _reset(); 
                   }, 
                 ),
               ),
@@ -282,7 +286,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     final content = widget.script['content'] ?? '';
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF0F0F3), // Matched Background
+      backgroundColor: const Color(0xFFF0F0F3), 
       body: SafeArea(
         top: false, 
         child: Column(
@@ -294,7 +298,6 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                 child: Column(
                   children: [
-                    // ── Script Preview Card ──
                     Container(
                       padding: const EdgeInsets.all(18),
                       decoration: BoxDecoration(
@@ -327,12 +330,12 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
 
                     const SizedBox(height: 30),
 
-                    // ── CLEAN RECORD CARD ──
                     _buildRecordCard(),
 
                     const SizedBox(height: 40),
 
-                    if (_status == PracticeStatus.paused) 
+                    // ---> CONDITION FIX: Changed to 10 seconds <---
+                    if (_status == PracticeStatus.paused && _seconds >= 10) 
                       _buildFinishButton(),
                       
                     const SizedBox(height: 40),
