@@ -4,18 +4,17 @@ import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart'; 
 import 'result_page.dart'; 
-// ADDED IMPORTS FOR SMART ROUTING
 import 'script_practice_page.dart';
 import 'time_challenge_page.dart';
 
 class ProgressPage extends StatefulWidget {
   final String userId;
-  final VoidCallback onStartPractice; // <-- ADDED THIS SO IT CAN FALLBACK TO PRACTICE MENU
+  final VoidCallback onStartPractice; 
 
   const ProgressPage({
     super.key, 
     required this.userId,
-    required this.onStartPractice, // <-- ADDED THIS
+    required this.onStartPractice,
   });
 
   @override
@@ -57,6 +56,17 @@ class _ProgressPageState extends State<ProgressPage> {
   List<double?> _clarityScores = [null, null, null, null, null, null, null];
   List<double?> _energyScores  = [null, null, null, null, null, null, null];
 
+  // Per-language daily chart data
+  List<double?> _englishDailyScores = [null, null, null, null, null, null, null];
+  List<double?> _englishPaceScores = [null, null, null, null, null, null, null];
+  List<double?> _englishClarityScores = [null, null, null, null, null, null, null];
+  List<double?> _englishEnergyScores = [null, null, null, null, null, null, null];
+
+  List<double?> _filipinoDailyScores = [null, null, null, null, null, null, null];
+  List<double?> _filipinoPaceScores = [null, null, null, null, null, null, null];
+  List<double?> _filipinoClarityScores = [null, null, null, null, null, null, null];
+  List<double?> _filipinoEnergyScores = [null, null, null, null, null, null, null];
+
   static const Color _paceColor    = Color(0xFF3F7CF4);
   static const Color _clarityColor = Color(0xFF4CAF50);
   static const Color _energyColor  = Color(0xFFF5A623);
@@ -76,78 +86,50 @@ class _ProgressPageState extends State<ProgressPage> {
         final data = jsonDecode(response.body);
         final List<dynamic> sessions = data['sessions'] ?? [];
 
-        List<double?> weeklyAverages = [null, null, null, null, null, null, null];
-        List<double?> weeklyPace = [null, null, null, null, null, null, null];
-        List<double?> weeklyClarity = [null, null, null, null, null, null, null];
-        List<double?> weeklyEnergy = [null, null, null, null, null, null, null];
-        
-        Map<int, List<double>> dayScores = {};
-        Map<int, List<double>> dayPace = {};
-        Map<int, List<double>> dayClarity = {};
-        Map<int, List<double>> dayEnergy = {};
+        // Split sessions by language ---
+        final List<dynamic> englishSessions = sessions.where((s) => (s['language'] ?? 'English') == 'English').toList();
+        final List<dynamic> filipinoSessions = sessions.where((s) => (s['language'] ?? 'English') == 'Filipino').toList();
 
-        double totalPace = 0, totalClarity = 0, totalEnergy = 0, totalOverall = 0;
+        // Compute per-language skill averages ---
+        _computeLanguageStats(englishSessions, isEnglish: true);
+        _computeLanguageStats(filipinoSessions, isEnglish: false);
+
+        // Compute weekly chart data (uses ALL sessions for activity dots, selected language for chart) ---
         Set<int> newActiveDays = {};
-
         DateTime now = DateTime.now();
         DateTime startOfWeek = DateTime(now.year, now.month, now.day).subtract(Duration(days: now.weekday - 1));
 
+        // Track active days from ALL sessions (both languages)
         for (var session in sessions) {
           if (session['createdAt'] != null) {
             DateTime date = DateTime.parse(session['createdAt']).toLocal();
-
-            double pace = (session['paceScore'] ?? 0).toDouble();
-            double clarity = (session['clarityScore'] ?? 0).toDouble();
-            double energy = (session['energyScore'] ?? 0).toDouble();
-            double overall = (session['overallScore'] ?? 0).toDouble();
-
-            totalPace += pace;
-            totalClarity += clarity;
-            totalEnergy += energy;
-            totalOverall += overall;
-
             if (date.isAfter(startOfWeek) || date.isAtSameMomentAs(startOfWeek)) {
-              int weekdayIndex = date.weekday - 1; 
               newActiveDays.add(date.weekday);
-
-              dayScores.putIfAbsent(weekdayIndex, () => []).add(overall);
-              dayPace.putIfAbsent(weekdayIndex, () => []).add(pace);
-              dayClarity.putIfAbsent(weekdayIndex, () => []).add(clarity);
-              dayEnergy.putIfAbsent(weekdayIndex, () => []).add(energy);
             }
           }
         }
 
-        dayScores.forEach((day, scores) {
-          weeklyAverages[day] = scores.reduce((a, b) => a + b) / scores.length;
-          weeklyPace[day] = dayPace[day]!.reduce((a, b) => a + b) / dayPace[day]!.length;
-          weeklyClarity[day] = dayClarity[day]!.reduce((a, b) => a + b) / dayClarity[day]!.length;
-          weeklyEnergy[day] = dayEnergy[day]!.reduce((a, b) => a + b) / dayEnergy[day]!.length;
-        });
-
-        if (sessions.isNotEmpty) {
-          int avgPace = (totalPace / sessions.length).round();
-          int avgClarity = (totalClarity / sessions.length).round();
-          int avgEnergy = (totalEnergy / sessions.length).round();
-          int avgOverall = (totalOverall / sessions.length).round();
-
-          _englishOverall = avgOverall;
-          _englishSkills = [
-            {'label': 'Pace', 'score': avgPace, 'value': avgPace / 100},
-            {'label': 'Clarity', 'score': avgClarity, 'value': avgClarity / 100},
-            {'label': 'Energy', 'score': avgEnergy, 'value': avgEnergy / 100},
-          ];
-        }
+        // Compute daily chart data for EACH language separately
+        final engDaily = _computeDailyData(englishSessions, startOfWeek);
+        final filDaily = _computeDailyData(filipinoSessions, startOfWeek);
 
         setState(() {
           _activeDays = newActiveDays;
           _realSessions = sessions.reversed.toList();
-          
-          _dailyScores = weeklyAverages;
-          _paceScores = weeklyPace;
-          _clarityScores = weeklyClarity;
-          _energyScores = weeklyEnergy;
-          
+
+          // Store both sets of daily data and show based on selected language
+          _englishDailyScores = engDaily['overall']!;
+          _englishPaceScores = engDaily['pace']!;
+          _englishClarityScores = engDaily['clarity']!;
+          _englishEnergyScores = engDaily['energy']!;
+
+          _filipinoDailyScores = filDaily['overall']!;
+          _filipinoPaceScores = filDaily['pace']!;
+          _filipinoClarityScores = filDaily['clarity']!;
+          _filipinoEnergyScores = filDaily['energy']!;
+
+          _updateChartForSelectedLanguage();
+
           _isLoading = false;
         });
       } else {
@@ -158,6 +140,117 @@ class _ProgressPageState extends State<ProgressPage> {
       setState(() => _isLoading = false);
     }
   }
+
+  void _computeLanguageStats(List<dynamic> sessions, {required bool isEnglish}) {
+    if (sessions.isEmpty) {
+      if (isEnglish) {
+        _englishOverall = 0;
+        _englishSkills = [
+          {'label': 'Pace', 'score': 0, 'value': 0.0},
+          {'label': 'Clarity', 'score': 0, 'value': 0.0},
+          {'label': 'Energy', 'score': 0, 'value': 0.0},
+        ];
+      } else {
+        _filipinoOverall = 0;
+        _filipinoSkills = [
+          {'label': 'Pace', 'score': 0, 'value': 0.0},
+          {'label': 'Clarity', 'score': 0, 'value': 0.0},
+          {'label': 'Energy', 'score': 0, 'value': 0.0},
+        ];
+      }
+      return;
+    }
+
+    double totalPace = 0, totalClarity = 0, totalEnergy = 0, totalOverall = 0;
+    for (var session in sessions) {
+      totalPace += (session['paceScore'] ?? 0).toDouble();
+      totalClarity += (session['clarityScore'] ?? 0).toDouble();
+      totalEnergy += (session['energyScore'] ?? 0).toDouble();
+      totalOverall += (session['overallScore'] ?? 0).toDouble();
+    }
+
+    int avgPace = (totalPace / sessions.length).round();
+    int avgClarity = (totalClarity / sessions.length).round();
+    int avgEnergy = (totalEnergy / sessions.length).round();
+    int avgOverall = (totalOverall / sessions.length).round();
+
+    if (isEnglish) {
+      _englishOverall = avgOverall;
+      _englishSkills = [
+        {'label': 'Pace', 'score': avgPace, 'value': avgPace / 100},
+        {'label': 'Clarity', 'score': avgClarity, 'value': avgClarity / 100},
+        {'label': 'Energy', 'score': avgEnergy, 'value': avgEnergy / 100},
+      ];
+    } else {
+      _filipinoOverall = avgOverall;
+      _filipinoSkills = [
+        {'label': 'Pace', 'score': avgPace, 'value': avgPace / 100},
+        {'label': 'Clarity', 'score': avgClarity, 'value': avgClarity / 100},
+        {'label': 'Energy', 'score': avgEnergy, 'value': avgEnergy / 100},
+      ];
+    }
+  }
+
+  Map<String, List<double?>> _computeDailyData(List<dynamic> sessions, DateTime startOfWeek) {
+    List<double?> weeklyAverages = [null, null, null, null, null, null, null];
+    List<double?> weeklyPace = [null, null, null, null, null, null, null];
+    List<double?> weeklyClarity = [null, null, null, null, null, null, null];
+    List<double?> weeklyEnergy = [null, null, null, null, null, null, null];
+
+    Map<int, List<double>> dayScores = {};
+    Map<int, List<double>> dayPace = {};
+    Map<int, List<double>> dayClarity = {};
+    Map<int, List<double>> dayEnergy = {};
+
+    for (var session in sessions) {
+      if (session['createdAt'] != null) {
+        DateTime date = DateTime.parse(session['createdAt']).toLocal();
+
+        double pace = (session['paceScore'] ?? 0).toDouble();
+        double clarity = (session['clarityScore'] ?? 0).toDouble();
+        double energy = (session['energyScore'] ?? 0).toDouble();
+        double overall = (session['overallScore'] ?? 0).toDouble();
+
+        if (date.isAfter(startOfWeek) || date.isAtSameMomentAs(startOfWeek)) {
+          int weekdayIndex = date.weekday - 1;
+
+          dayScores.putIfAbsent(weekdayIndex, () => []).add(overall);
+          dayPace.putIfAbsent(weekdayIndex, () => []).add(pace);
+          dayClarity.putIfAbsent(weekdayIndex, () => []).add(clarity);
+          dayEnergy.putIfAbsent(weekdayIndex, () => []).add(energy);
+        }
+      }
+    }
+
+    dayScores.forEach((day, scores) {
+      weeklyAverages[day] = scores.reduce((a, b) => a + b) / scores.length;
+      weeklyPace[day] = dayPace[day]!.reduce((a, b) => a + b) / dayPace[day]!.length;
+      weeklyClarity[day] = dayClarity[day]!.reduce((a, b) => a + b) / dayClarity[day]!.length;
+      weeklyEnergy[day] = dayEnergy[day]!.reduce((a, b) => a + b) / dayEnergy[day]!.length;
+    });
+
+    return {
+      'overall': weeklyAverages,
+      'pace': weeklyPace,
+      'clarity': weeklyClarity,
+      'energy': weeklyEnergy,
+    };
+  }
+
+  void _updateChartForSelectedLanguage() {
+    if (_isEnglishSelected) {
+      _dailyScores = _englishDailyScores;
+      _paceScores = _englishPaceScores;
+      _clarityScores = _englishClarityScores;
+      _energyScores = _englishEnergyScores;
+    } else {
+      _dailyScores = _filipinoDailyScores;
+      _paceScores = _filipinoPaceScores;
+      _clarityScores = _filipinoClarityScores;
+      _energyScores = _filipinoEnergyScores;
+    }
+  }
+
 
   Color _barColor(double score) {
     if (score == 0) return Colors.grey.shade400; 
@@ -422,8 +515,8 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                   padding: const EdgeInsets.all(4),
                   child: Row(
                     children: [
-                      _toggleBtn('English', _isEnglishSelected, const Color(0xFF3F7CF4), () => setState(() => _isEnglishSelected = true)),
-                      _toggleBtn('Filipino', !_isEnglishSelected, const Color(0xFFF5A623), () => setState(() => _isEnglishSelected = false)),
+                      _toggleBtn('English', _isEnglishSelected, const Color(0xFF3F7CF4), () => setState(() { _isEnglishSelected = true; _updateChartForSelectedLanguage(); })),
+                      _toggleBtn('Filipino', !_isEnglishSelected, const Color(0xFFF5A623), () => setState(() { _isEnglishSelected = false; _updateChartForSelectedLanguage(); })),
                     ],
                   ),
                 ),
