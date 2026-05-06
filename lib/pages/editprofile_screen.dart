@@ -107,7 +107,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       backgroundColor: Colors.grey[100], 
       body: Column(
         children: [
-          Container(
+            Container(
             width: double.infinity,
             color: AppTheme.accentColor, 
             padding: EdgeInsets.only(

@@ -74,9 +74,12 @@ class ResultPage extends StatelessWidget {
           children: [
             Container(
               color: const Color(0xFF3F7CF4),
-              padding: const EdgeInsets.fromLTRB(20, 50, 20, 40),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              child: SafeArea(
+                bottom: false,
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   GestureDetector(
                     onTap: onPracticeAgain ?? onBackToHome,
@@ -138,6 +141,8 @@ class ResultPage extends StatelessWidget {
                 ],
               ),
             ),
+          ),
+        ),
 
             Padding(
               padding: const EdgeInsets.all(20),

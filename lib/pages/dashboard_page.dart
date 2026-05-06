@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'learning_resources_page.dart';
@@ -65,8 +66,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
   Future<void> _fetchDashboardData() async {
     try {
-      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'));
-      final historyRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}'));
+      debugPrint('Dashboard: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}');
+      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}')).timeout(const Duration(seconds: 10));
+      final historyRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}')).timeout(const Duration(seconds: 10));
+      debugPrint('Dashboard: statsRes=${statsRes.statusCode}, historyRes=${historyRes.statusCode}');
 
       if (statsRes.statusCode == 200) {
         final data = jsonDecode(statsRes.body);
@@ -123,7 +126,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
       setState(() => _isLoading = false);
     } catch (e) {
-      debugPrint("Error fetching data: $e");
+      debugPrint("Dashboard ERROR: $e");
+      debugPrint("Dashboard ERROR type: ${e.runtimeType}");
       setState(() => _isLoading = false);
     }
   }
@@ -183,20 +187,22 @@ class _DashBoardPageState extends State<DashBoardPage> {
       children: [
         Container(
           width: double.infinity,
-          height: 180 + topPadding, 
+          height: MediaQuery.of(context).size.height * 0.22 + topPadding, 
           padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
           decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text('iSpeak', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 4),
-                  Text('Improve your public speaking', style: TextStyle(color: Colors.white70, fontSize: 13)),
-                ],
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('iSpeak', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
+                    SizedBox(height: 4),
+                    Text('Improve your public speaking', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                  ],
+                ),
               ),
               GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId))),
@@ -430,13 +436,15 @@ class _SessionCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(  // NEW: Wrap date in column to add time below
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(date, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black54)),
-                  const SizedBox(height: 4),
-                  Text(createdTime, style: const TextStyle(fontSize: 12, color: Colors.grey)),
-                ],
+              Expanded(
+                child: Column(  // NEW: Wrap date in column to add time below
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(date, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.black54)),
+                    const SizedBox(height: 4),
+                    Text(createdTime, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
               ),
               Text(score, style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: _scoreColor)),
             ],

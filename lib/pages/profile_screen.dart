@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -44,8 +45,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _loadUserData() async {
     try {
-      final userRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'));
-      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'));
+      debugPrint('Profile: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}');
+      final userRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}')).timeout(const Duration(seconds: 10));
+      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}')).timeout(const Duration(seconds: 10));
+      debugPrint('Profile: userRes=${userRes.statusCode}, statsRes=${statsRes.statusCode}');
 
       if (userRes.statusCode == 200) {
         final userData = jsonDecode(userRes.body);
@@ -116,7 +119,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       });
 
     } catch (e) {
-      debugPrint("Error fetching profile data: $e");
+      debugPrint("Profile ERROR: $e");
+      debugPrint("Profile ERROR type: ${e.runtimeType}");
       setState(() {
         _isLoading = false;
         username = "Network Error";
@@ -189,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Stack(
           children: [
             Container(
-              height: 320, 
+              height: MediaQuery.of(context).size.height * 0.35, 
               width: double.infinity,
               color: AppTheme.accentColor, 
             ),

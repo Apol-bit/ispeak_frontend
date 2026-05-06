@@ -28,6 +28,12 @@ void main() async {
     ),
   );
 
+  // Lock orientation to Portrait Only
+  await SystemChrome.setPreferredOrientations([
+    DeviceOrientation.portraitUp,
+    DeviceOrientation.portraitDown,
+  ]);
+
   runApp(const MyApp());
 }
 

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; 
@@ -79,8 +80,10 @@ class _ProgressPageState extends State<ProgressPage> {
 
   Future<void> _fetchUserProgress() async {
     try {
+      debugPrint('Progress: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}');
       final url = Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}');
-      final response = await http.get(url);
+      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      debugPrint('Progress: response status=${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -136,7 +139,8 @@ class _ProgressPageState extends State<ProgressPage> {
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      debugPrint("Error fetching progress: $e");
+      debugPrint("Progress ERROR: $e");
+      debugPrint("Progress ERROR type: ${e.runtimeType}");
       setState(() => _isLoading = false);
     }
   }
@@ -367,11 +371,11 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                             children: [
                               const Text('Performance Trends', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17)),
                               const SizedBox(height: 20),
-                              _perfRow('Pace', 'Steady improvement in rate', 0.0, '+0%', accentColor), 
+                              _perfRow('Pace', _getTrendSubtitle('Pace', skills), (skills[0]['value'] as double), '${skills[0]['score']}%', accentColor), 
                               const SizedBox(height: 18),
-                              _perfRow('Clarity', 'Clear and articulate delivery', 0.0, '+0%', accentColor),
+                              _perfRow('Clarity', _getTrendSubtitle('Clarity', skills), (skills[1]['value'] as double), '${skills[1]['score']}%', accentColor),
                               const SizedBox(height: 18),
-                              _perfRow('Energy', 'Consistently high energy', 0.0, '+0%', accentColor),
+                              _perfRow('Energy', _getTrendSubtitle('Energy', skills), (skills[2]['value'] as double), '${skills[2]['score']}%', accentColor),
                             ],
                           ),
                         ),
@@ -784,6 +788,7 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                         }),
                       ),
                     ),
+                    // LINE LAYER — draws connecting lines between data points
                     ...series.map((m) {
                       final pts = <MapEntry<int, double>>[];
                       for (int i = 0; i < m.scores.length; i++) {
@@ -792,31 +797,40 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                       final offsets = pts.map((e) => Offset(e.key * segmentWidth + segmentWidth / 2, chartHeight - (e.value / 100) * chartHeight)).toList();
                       return Positioned(
                         top: 0, left: 0, width: chartWidth, height: chartHeight,
-                        child: CustomPaint(painter: _MultiLinePainter(points: offsets, color: m.color)),
+                        child: RepaintBoundary(
+                          child: CustomPaint(
+                            size: Size(chartWidth, chartHeight),
+                            painter: _MultiLinePainter(points: offsets, color: m.color),
+                          ),
+                        ),
                       );
                     }),
+                    // DOT LAYER — draws circles on each data point (on top of lines)
                     ...series.map((m) {
                       final pts = <MapEntry<int, double>>[];
                       for (int i = 0; i < m.scores.length; i++) {
                         if (m.scores[i] != null) pts.add(MapEntry(i, m.scores[i]!));
                       }
-                      return Stack(
-                        clipBehavior: Clip.none,
-                        children: pts.map((entry) {
-                          final x = entry.key * segmentWidth + segmentWidth / 2;
-                          final y = chartHeight - (entry.value / 100) * chartHeight;
-                          return Positioned(
-                            left: x - 6, top: y - 6,
-                            child: Container(
-                              width: 12, height: 12,
-                              decoration: BoxDecoration(
-                                color: m.color, shape: BoxShape.circle,
-                                border: Border.all(color: Colors.white, width: 2),
-                                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4)],
+                      return Positioned(
+                        top: 0, left: 0, width: chartWidth, height: chartHeight,
+                        child: Stack(
+                          clipBehavior: Clip.none,
+                          children: pts.map((entry) {
+                            final x = entry.key * segmentWidth + segmentWidth / 2;
+                            final y = chartHeight - (entry.value / 100) * chartHeight;
+                            return Positioned(
+                              left: x - 6, top: y - 6,
+                              child: Container(
+                                width: 12, height: 12,
+                                decoration: BoxDecoration(
+                                  color: m.color, shape: BoxShape.circle,
+                                  border: Border.all(color: Colors.white, width: 2),
+                                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.15), blurRadius: 4)],
+                                ),
                               ),
-                            ),
-                          );
-                        }).toList(),
+                            );
+                          }).toList(),
+                        ),
                       );
                     }),
                     ...List.generate(7, (i) {
@@ -932,6 +946,16 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
     );
   }
 
+  String _getTrendSubtitle(String metric, List skills) {
+    int index = metric == 'Pace' ? 0 : metric == 'Clarity' ? 1 : 2;
+    int score = skills[index]['score'] as int;
+    if (score == 0) return 'No data yet — start practicing!';
+    if (score >= 85) return 'Excellent $metric performance';
+    if (score >= 70) return 'Good $metric — keep improving';
+    if (score >= 50) return '$metric needs more practice';
+    return '$metric needs significant work';
+  }
+
   Widget _perfRow(String title, String subtitle, double value, String change, Color accentColor) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -939,7 +963,7 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
+            Expanded(child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15))),
             Text(change, style: TextStyle(color: accentColor, fontWeight: FontWeight.w900)),
           ],
         ),
@@ -969,15 +993,17 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                const SizedBox(height: 4),
-                Text(date, style: const TextStyle(fontSize: 13, color: Colors.grey)),
-                const SizedBox(height: 2),
-                Text(time, style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
-              ],
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 4),
+                  Text(date, style: const TextStyle(fontSize: 13, color: Colors.grey)),
+                  const SizedBox(height: 2),
+                  Text(time, style: const TextStyle(fontSize: 12, color: Colors.grey, fontStyle: FontStyle.italic)),
+                ],
+              ),
             ),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -1012,15 +1038,27 @@ class _MultiLinePainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (points.length < 2) return;
-    final paint = Paint()..color = color..strokeWidth = 2.5..strokeCap = StrokeCap.round..strokeJoin = StrokeJoin.round..style = PaintingStyle.stroke;
-    final path = Path()..moveTo(points.first.dx, points.first.dy);
-    for (int i = 1; i < points.length; i++) {
-      path.lineTo(points[i].dx, points[i].dy);
+    if (points.isEmpty) return;
+
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 3.0
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+
+    if (points.length == 1) {
+      // Draw a filled circle for a single data point
+      final dotPaint = Paint()..color = color..style = PaintingStyle.fill;
+      canvas.drawCircle(points.first, 5, dotPaint);
+      return;
     }
-    canvas.drawPath(path, paint);
+
+    // Use drawLine for each segment — more reliable on Impeller/Vulkan
+    for (int i = 0; i < points.length - 1; i++) {
+      canvas.drawLine(points[i], points[i + 1], paint);
+    }
   }
 
   @override
-  bool shouldRepaint(_MultiLinePainter old) => old.points != points || old.color != color;
+  bool shouldRepaint(_MultiLinePainter old) => true;
 }

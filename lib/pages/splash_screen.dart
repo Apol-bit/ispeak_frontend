@@ -23,78 +23,88 @@ class SplashScreen extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: [
-              // UNIVERSAL FIX 2: Dynamic spacing (5% of screen height) instead of fixed pixels
-              SizedBox(height: size.height * 0.05),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            return SingleChildScrollView(
+              child: ConstrainedBox(
+                constraints: BoxConstraints(minHeight: constraints.maxHeight),
+                child: IntrinsicHeight(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      children: [
+                        SizedBox(height: size.height * 0.05),
 
-              Hero(
-                tag: 'logo',
-                child: Image.asset(
-                  'assets/images/ispeak_logo.png',
-                  // UNIVERSAL FIX 3: Logo will always be exactly 15% of the screen height, never too big or small!
-                  height: size.height * 0.15, 
-                ),
-              ),
+                        Hero(
+                          tag: 'logo',
+                          child: Image.asset(
+                            'assets/images/ispeak_logo.png',
+                            height: size.height * 0.15, 
+                          ),
+                        ),
 
-              const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-              Hero(tag: 'brand_text', child: Material(
-                type: MaterialType.transparency,
-                child: Text(
-                  "iSpeak", 
-                  style: TextStyle(
-                    fontSize: 52,
-                    fontFamily: 'Inter',
-                    fontWeight: FontWeight.bold,
-                    color: AppTheme.textPrimary,
+                        Hero(tag: 'brand_text', child: Material(
+                          type: MaterialType.transparency,
+                          child: Text(
+                            "iSpeak", 
+                            style: TextStyle(
+                              fontSize: 52,
+                              fontFamily: 'Inter',
+                              fontWeight: FontWeight.bold,
+                              color: AppTheme.textPrimary,
+                            ),
+                          ),
+                        )),
+
+                        const SizedBox(height: 10),
+
+                        const Text(
+                          "Master Your Public Speaking\nSkills with Real-Time Feedback",
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 14),
+                        ),
+
+                        SizedBox(height: size.height * 0.05),
+
+                        const FeatureCard(
+                          icon: Icons.volume_up,
+                          title: "Real-Time Analysis",
+                          subtitle: "Track pace, clarity & energy",
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        const FeatureCard(
+                          icon: Icons.trending_up,
+                          title: "Progress Tracking",
+                          subtitle: "See your improvement over time",
+                        ),
+
+                        const SizedBox(height: 15),
+
+                        const FeatureCard(
+                          icon: Icons.language,
+                          title: "Bilingual Support",
+                          subtitle: "English & Filipino languages",
+                        ),
+
+                        const Spacer(),
+                        const SizedBox(height: 20),
+
+                        PrimaryButton(
+                          text: "Get Started",
+                          onPressed: () => goToLogin(context),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              )),
-
-              const SizedBox(height: 10),
-
-              const Text(
-                "Master Your Public Speaking\nSkills with Real-Time Feedback",
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 14),
               ),
-
-              SizedBox(height: size.height * 0.05),
-
-              const FeatureCard(
-                icon: Icons.volume_up,
-                title: "Real-Time Analysis",
-                subtitle: "Track pace, clarity & energy",
-              ),
-
-              const SizedBox(height: 15),
-
-              const FeatureCard(
-                icon: Icons.trending_up,
-                title: "Progress Tracking",
-                subtitle: "See your improvement over time",
-              ),
-
-              const SizedBox(height: 15),
-
-              const FeatureCard(
-                icon: Icons.language,
-                title: "Bilingual Support",
-                subtitle: "English & Filipino languages",
-              ),
-
-              const Spacer(),
-
-              PrimaryButton(
-                text: "Get Started",
-                onPressed: () => goToLogin(context),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );
