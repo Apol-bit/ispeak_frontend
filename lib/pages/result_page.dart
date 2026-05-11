@@ -22,14 +22,37 @@ class ResultPage extends StatelessWidget {
   }
 
   String _getScoreLabel(num score) {
-    if (score == 0) return 'Pending AI Analysis ⏳';
+    if (score == 0) return 'No Speech Detected 🔇';
     if (score >= 90) return 'Excellent 🎉';
     if (score >= 75) return 'Good 👍';
     if (score >= 60) return 'Fair 😐';
     return 'Needs Work 📈';
   }
 
-  // --- Format date and time from ISO string ---
+  // DYNAMIC FEEDBACK HELPERS
+  String _getPaceFeedback(int score, int wpm) {
+    if (score == 0) return 'Audio was too quiet or short to measure pace. Please try again.'; 
+    if (wpm < 110) return 'Pacing is a bit slow. Try to speak a little faster.';
+    if (wpm > 160) return 'Pacing is too fast. Try to slow down and breathe.';
+    return 'Excellent pacing! Try to maintain this consistency.';
+  }
+
+  String _getClarityFeedback(int score, int fillers) {
+    if (score == 0) return 'Could not detect any words to analyze for clarity.'; 
+    if (fillers == 0) return 'Perfect! No filler words detected.';
+    if (fillers <= 3) return 'Minimal filler words. Keep it up.';
+    if (fillers <= 8) return 'Moderate filler words. Try to pause instead of saying "um".';
+    return 'High filler word usage. Practice speaking with fewer hesitations.';
+  }
+
+  String _getEnergyFeedback(int score) {
+    if (score == 0) return 'No vocal energy detected. Please speak closer to the mic.'; 
+    if (score >= 80) return 'Great energy and vocal projection!';
+    if (score >= 60) return 'Good energy level. Keep it up.';
+    return 'Energy is a bit low. Try to speak with more enthusiasm.';
+  }
+
+  // Format date and time from ISO string
   String _formatDateTime(String? isoDate) {
     if (isoDate == null || isoDate.isEmpty) {
       return 'Date Unknown';
@@ -157,7 +180,7 @@ class ResultPage extends StatelessWidget {
                     title: 'Pace',
                     subtitle: '$wpmDisplay words per minute',
                     score: paceScore,
-                    feedback: paceScore == 0 ? 'Awaiting AI Analysis...' : 'Good pacing. Try to maintain consistency.',
+                    feedback: _getPaceFeedback(paceScore, wpmDisplay), // <-- UPDATED
                   ),
                   const SizedBox(height: 16),
 
@@ -166,7 +189,7 @@ class ResultPage extends StatelessWidget {
                     title: 'Clarity',
                     subtitle: '$fillerDisplay filler words detected',
                     score: clarityScore,
-                    feedback: clarityScore == 0 ? 'Awaiting AI Analysis...' : 'Minimal filler words. Keep it up.',
+                    feedback: _getClarityFeedback(clarityScore, fillerDisplay), // <-- UPDATED
                   ),
                   const SizedBox(height: 16),
 
@@ -175,7 +198,7 @@ class ResultPage extends StatelessWidget {
                     title: 'Energy',
                     subtitle: 'Vocal projection and emotion',
                     score: energyScore,
-                    feedback: energyScore == 0 ? 'Awaiting AI Analysis...' : 'Good energy level.',
+                    feedback: _getEnergyFeedback(energyScore), // <-- UPDATED
                   ),
 
                   const SizedBox(height: 32),
@@ -271,7 +294,7 @@ class ResultPage extends StatelessWidget {
           const SizedBox(height: 12),
           Row(
             children: [
-              Icon(score == 0 ? Icons.hourglass_empty : Icons.check, size: 14, color: Colors.grey),
+              Icon(score == 0 ? Icons.hourglass_empty : (score >= 60 ? Icons.check : Icons.warning_amber_rounded), size: 14, color: Colors.grey),
               const SizedBox(width: 6),
               Expanded(child: Text(feedback, style: const TextStyle(color: Colors.grey, fontSize: 12))),
             ],
