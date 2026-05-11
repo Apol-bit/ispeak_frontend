@@ -612,8 +612,8 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
                   padding: const EdgeInsets.all(4),
                   child: Row(
                     children: [
-                      _toggleBtn('Bar', _isBarChart, accentColor, () => setState(() { _isBarChart = true; _tooltipDayIndex = null; })),
-                      _toggleBtn('Line', !_isBarChart, accentColor, () => setState(() => _isBarChart = false)),
+                      _toggleBtn('Feature', _isBarChart, accentColor, () => setState(() { _isBarChart = true; _tooltipDayIndex = null; })),
+                      _toggleBtn('Ratings', !_isBarChart, accentColor, () => setState(() => _isBarChart = false)),
                     ],
                   ),
                 ),

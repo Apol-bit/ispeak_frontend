@@ -318,11 +318,14 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                             ],
                           ),
                           const SizedBox(height: 14),
-                          Text(
-                            content,
-                            maxLines: 5,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(color: Colors.black87, height: 1.5, fontSize: 13),
+                          Container(
+                            constraints: const BoxConstraints(maxHeight: 150),
+                            child: SingleChildScrollView(
+                              child: Text(
+                                content,
+                                style: const TextStyle(color: Colors.black87, height: 1.5, fontSize: 13),
+                              ),
+                            ),
                           ),
                         ],
                       ),
