@@ -16,7 +16,8 @@ class ScriptDetailPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String fullContent = script['content'] ?? 'No content available for this script.';
+    // Use transcript first, fall back to content for backward compat
+    final String fullContent = script['transcript'] ?? script['content'] ?? 'No content available for this script.';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F3), // Matched PracticePage background
@@ -165,11 +166,96 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
 
+  // ── KARAOKE TELEPROMPTER STATE ──────────────────────────────────
+  List<String> _words = [];
+  List<_WordTiming> _wordTimings = [];
+  int _currentWordIndex = -1; // -1 means not started
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeKaraoke();
+  }
+
+  void _initializeKaraoke() {
+    // Parse the script text into individual words
+    final content = widget.script['transcript'] ?? widget.script['content'] ?? '';
+    _words = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
+
+    // Try to use word timestamps from reference audio if available
+    final timestamps = widget.script['wordTimestamps'] ?? widget.script['word_timestamps'];
+    if (timestamps != null && timestamps is List && timestamps.isNotEmpty) {
+      _wordTimings = timestamps.map<_WordTiming>((t) => _WordTiming(
+        word: t['word'] ?? '',
+        start: (t['start'] ?? 0.0).toDouble(),
+        end: (t['end'] ?? 0.0).toDouble(),
+      )).toList();
+    } else {
+      // If no timestamps from reference audio, estimate based on average reading speed
+      // ~150 WPM = ~2.5 words per second = ~0.4 seconds per word
+      double currentTime = 0.0;
+      const double avgWordDuration = 0.4;
+      _wordTimings = _words.map((w) {
+        final timing = _WordTiming(
+          word: w,
+          start: currentTime,
+          end: currentTime + avgWordDuration,
+        );
+        currentTime += avgWordDuration;
+        return timing;
+      }).toList();
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
     _audioRecorder.dispose();
+    _scrollController.dispose();
     super.dispose();
+  }
+
+  void _updateKaraokePosition() {
+    if (_wordTimings.isEmpty) return;
+
+    final elapsed = _seconds.toDouble();
+    int newIndex = -1;
+
+    for (int i = 0; i < _wordTimings.length; i++) {
+      if (elapsed >= _wordTimings[i].start && elapsed < _wordTimings[i].end + 0.5) {
+        newIndex = i;
+      }
+    }
+
+    // If past all timings, stay on last word
+    if (newIndex == -1 && elapsed > 0 && _wordTimings.isNotEmpty) {
+      if (elapsed >= _wordTimings.last.start) {
+        newIndex = _wordTimings.length - 1;
+      }
+    }
+
+    if (newIndex != _currentWordIndex) {
+      setState(() => _currentWordIndex = newIndex);
+      _autoScrollToCurrentWord();
+    }
+  }
+
+  void _autoScrollToCurrentWord() {
+    if (_currentWordIndex < 0 || !_scrollController.hasClients) return;
+
+    // Estimate scroll position based on word index
+    // Each word takes roughly 24px of height in the flow layout
+    final wordsPerLine = 6; // approximate
+    final lineHeight = 32.0;
+    final targetLine = _currentWordIndex / wordsPerLine;
+    final targetScroll = (targetLine * lineHeight) - 80; // offset to keep word centered
+
+    _scrollController.animateTo(
+      targetScroll.clamp(0.0, _scrollController.position.maxScrollExtent),
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeOut,
+    );
   }
 
   Future<void> _start() async {
@@ -179,6 +265,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         
         if (_status == PracticeStatus.ready) {
           _seconds = 0;
+          _currentWordIndex = -1;
           final Directory tempDir = await getTemporaryDirectory();
           // ---> AUDIO FIX: Changed .m4a to .wav
           _audioPath = '${tempDir.path}/ispeak_script_${DateTime.now().millisecondsSinceEpoch}.wav';
@@ -198,7 +285,10 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
 
         setState(() => _status = PracticeStatus.recording);
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
-          if (mounted) setState(() => _seconds++);
+          if (mounted) {
+            setState(() => _seconds++);
+            _updateKaraokePosition();
+          }
         });
       }
     } catch (e) {
@@ -225,6 +315,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       _status = PracticeStatus.ready;
       _seconds = 0;
       _audioPath = null;
+      _currentWordIndex = -1;
     });
   }
 
@@ -283,7 +374,6 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     final title = widget.script['title'] ?? 'Practice Script';
     final level = widget.script['difficulty'] ?? 'Beginner';
     final language = widget.script['language'] ?? 'English';
-    final content = widget.script['content'] ?? '';
 
     return Scaffold(
       backgroundColor: const Color(0xFFF0F0F3), 
@@ -298,38 +388,8 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                 child: Column(
                   children: [
-                    Container(
-                      padding: const EdgeInsets.all(18),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1A2E))),
-                          const SizedBox(height: 8),
-                          Wrap(
-                            spacing: 8,
-                            children: [
-                              _badge(level, const Color(0xFFE6EEFF), const Color(0xFF3F7CF4)),
-                              _badge(language, Colors.grey.shade100, Colors.black54),
-                            ],
-                          ),
-                          const SizedBox(height: 14),
-                          Container(
-                            constraints: const BoxConstraints(maxHeight: 150),
-                            child: SingleChildScrollView(
-                              child: Text(
-                                content,
-                                style: const TextStyle(color: Colors.black87, height: 1.5, fontSize: 13),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    // ── KARAOKE TELEPROMPTER ──────────────────────
+                    _buildKaraokeTeleprompter(title, level, language),
 
                     const SizedBox(height: 30),
 
@@ -348,6 +408,130 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  // ── KARAOKE TELEPROMPTER WIDGET ──────────────────────────────────
+  Widget _buildKaraokeTeleprompter(String title, String level, String language) {
+    final isActive = _status == PracticeStatus.recording || _status == PracticeStatus.paused;
+    
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
+        border: isActive 
+          ? Border.all(color: const Color(0xFF3F7CF4).withOpacity(0.3), width: 2)
+          : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Title and badges
+          Row(
+            children: [
+              if (isActive)
+                Container(
+                  margin: const EdgeInsets.only(right: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3F7CF4),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, color: Colors.white, size: 12),
+                      SizedBox(width: 4),
+                      Text('LIVE', style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Color(0xFF1A1A2E))),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8,
+            children: [
+              _badge(level, const Color(0xFFE6EEFF), const Color(0xFF3F7CF4)),
+              _badge(language, Colors.grey.shade100, Colors.black54),
+            ],
+          ),
+          const SizedBox(height: 14),
+          
+          // ── THE KARAOKE TEXT ──────────────────────────────────
+          Container(
+            constraints: const BoxConstraints(maxHeight: 200),
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              child: Wrap(
+                spacing: 5,
+                runSpacing: 8,
+                children: List.generate(_words.length, (index) {
+                  final bool isCurrent = index == _currentWordIndex;
+                  final bool isPast = _currentWordIndex >= 0 && index < _currentWordIndex;
+                  final bool isFuture = _currentWordIndex >= 0 && index > _currentWordIndex;
+                  final bool isInactive = _currentWordIndex < 0;
+
+                  return AnimatedContainer(
+                    duration: const Duration(milliseconds: 200),
+                    padding: isCurrent 
+                      ? const EdgeInsets.symmetric(horizontal: 4, vertical: 2)
+                      : EdgeInsets.zero,
+                    decoration: isCurrent
+                      ? BoxDecoration(
+                          color: const Color(0xFF3F7CF4).withOpacity(0.15),
+                          borderRadius: BorderRadius.circular(4),
+                          border: Border.all(color: const Color(0xFF3F7CF4).withOpacity(0.4), width: 1.5),
+                        )
+                      : null,
+                    child: Text(
+                      _words[index],
+                      style: TextStyle(
+                        fontSize: isCurrent ? 15 : 13,
+                        fontWeight: isCurrent ? FontWeight.w800 : FontWeight.normal,
+                        color: isInactive
+                          ? Colors.black87
+                          : isCurrent
+                            ? const Color(0xFF3F7CF4)
+                            : isPast
+                              ? Colors.grey.shade400
+                              : isFuture
+                                ? Colors.black87
+                                : Colors.black87,
+                        height: 1.5,
+                      ),
+                    ),
+                  );
+                }),
+              ),
+            ),
+          ),
+          
+          // Progress indicator
+          if (_currentWordIndex >= 0) ...[
+            const SizedBox(height: 12),
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: _words.isEmpty ? 0 : (_currentWordIndex + 1) / _words.length,
+                backgroundColor: Colors.grey.shade200,
+                valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFF3F7CF4)),
+                minHeight: 4,
+              ),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              '${_currentWordIndex + 1} / ${_words.length} words',
+              style: TextStyle(fontSize: 11, color: Colors.grey.shade500),
+            ),
+          ],
+        ],
       ),
     );
   }
@@ -455,4 +639,13 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       child: Text(text, style: TextStyle(color: textCol, fontSize: 11, fontWeight: FontWeight.bold)),
     );
   }
+}
+
+// ── INTERNAL HELPER CLASS ──────────────────────────────────────────
+class _WordTiming {
+  final String word;
+  final double start;
+  final double end;
+
+  _WordTiming({required this.word, required this.start, required this.end});
 }

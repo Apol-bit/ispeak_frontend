@@ -87,8 +87,8 @@ class SplashScreen extends StatelessWidget {
 
                         const FeatureCard(
                           icon: Icons.language,
-                          title: "Bilingual Support",
-                          subtitle: "English & Filipino languages",
+                          title: "Taglish Support",
+                          subtitle: "English, Filipino & Taglish",
                         ),
 
                         const Spacer(),
