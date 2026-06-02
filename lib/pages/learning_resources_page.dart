@@ -27,6 +27,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   List<dynamic> _challenges = [];
   List<dynamic> _guidedTasks = [];
 
+  // --- LEVEL FILTER ---
+  String _userLevel = '';   // 'Beginner', 'Intermediate', 'Advanced' or '' (no filter)
+
   @override
   void initState() {
     super.initState();
@@ -37,16 +40,36 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   Future<void> _fetchResourcesFromBackend() async {
     setState(() => _isLoading = true);
     try {
+      // Fetch user profile to get their current level
+      final profileRes = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/users/${widget.userId}'),
+      );
+      if (profileRes.statusCode == 200) {
+        final profileData = json.decode(profileRes.body);
+        // Prefer the stored official/initial level
+        _userLevel = profileData['level'] ?? profileData['initialLevel'] ?? '';
+      }
+
       final url = Uri.parse('${ApiConfig.baseUrl}/resources');
       final response = await http.get(url);
 
       if (response.statusCode == 200) {
         final List<dynamic> allResources = json.decode(response.body);
 
+        // Apply level filter — only show resources that match user's level
+        List<dynamic> filtered(List<dynamic> list) {
+          if (_userLevel.isEmpty) return list;
+          return list.where((r) {
+            final String? diff = r['difficulty'];
+            if (diff == null) return true; // show items with no difficulty set
+            return diff.toLowerCase() == _userLevel.toLowerCase();
+          }).toList();
+        }
+
         setState(() {
-          _scripts = allResources.where((r) => r['type'] == 'Script').toList();
-          _challenges = allResources.where((r) => r['type'] == 'Challenge').toList();
-          _guidedTasks = allResources.where((r) => r['type'] == 'GuidedTask').toList();
+          _scripts   = filtered(allResources.where((r) => r['type'] == 'Script').toList());
+          _challenges = filtered(allResources.where((r) => r['type'] == 'Challenge').toList());
+          _guidedTasks = filtered(allResources.where((r) => r['type'] == 'GuidedTask').toList());
           _isLoading = false;
         });
       } else {
@@ -120,12 +143,23 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   Widget _header(BuildContext context) {
     final double topPadding = MediaQuery.of(context).padding.top;
 
+    IconData levelIcon;
+    switch (_userLevel) {
+      case 'Advanced':
+        levelIcon = Icons.emoji_events_outlined;
+        break;
+      case 'Intermediate':
+        levelIcon = Icons.trending_up;
+        break;
+      default:
+        levelIcon = Icons.spa_outlined;
+    }
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
       decoration: const BoxDecoration(
         color: Color(0xFF3F7CF4),
-        // Straight edges, no border radius
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -149,6 +183,39 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           const Text('Improve your speaking skills',
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
+          if (_userLevel.isNotEmpty) ...[
+            const SizedBox(height: 12),
+            Row(
+              children: [
+                Icon(Icons.filter_list, color: Colors.white70, size: 14),
+                const SizedBox(width: 6),
+                const Text('Showing resources for your level:',
+                  style: TextStyle(color: Colors.white70, fontSize: 12)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withAlpha(40),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: Colors.white38),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(levelIcon, color: Colors.white, size: 13),
+                      const SizedBox(width: 5),
+                      Text(_userLevel,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                        )),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
           const SizedBox(height: 8), 
         ],
       ),
@@ -213,7 +280,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   // ── DYNAMIC BUILDERS ──────────────────────────────────────────────────────────────
 
   List<Widget> _buildScriptCards() {
-    if (_scripts.isEmpty) return [const Text("No scripts available.")];
+    if (_scripts.isEmpty) {
+      return [_buildEmptyState('scripts')];
+    }
     
     return _scripts.map((scriptData) {
       return Padding(
@@ -239,7 +308,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   }
 
   List<Widget> _buildChallengeCards() {
-    if (_challenges.isEmpty) return [const Text("No challenges available.")];
+    if (_challenges.isEmpty) {
+      return [_buildEmptyState('challenges')];
+    }
 
     return _challenges.map((challengeData) {
       return Padding(
@@ -272,7 +343,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   }
 
   List<Widget> _buildGuidedTaskCards() {
-    if (_guidedTasks.isEmpty) return [const Text("No tasks available.")];
+    if (_guidedTasks.isEmpty) {
+      return [_buildEmptyState('guided tasks')];
+    }
 
     return _guidedTasks.map((taskData) {
       return Padding(
@@ -292,6 +365,34 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         ),
       );
     }).toList();
+  }
+
+  Widget _buildEmptyState(String contentType) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 40),
+      child: Center(
+        child: Column(
+          children: [
+            Icon(Icons.search_off_rounded, size: 56, color: Colors.grey.shade300),
+            const SizedBox(height: 14),
+            Text(
+              'No $_userLevel $contentType yet',
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Colors.black54,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              'Check back later — more content\nfor your level is on the way!',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 13, color: Colors.grey.shade400, height: 1.5),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 }
 

@@ -30,9 +30,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
   Map<String, dynamic> _userStats = {
     'totalSessions': 0,
     'avgScore': 0,
-    'dayStreak': 0, 
+    'dayStreak': 0,
   };
   List<dynamic> _recentSessionsList = [];
+
+  // Level system state
+  String _userLevel = 'Beginner';         // current/initial level
+  int _practiceCount = 0;                  // total completed sessions
+  bool _levelLocked = false;               // true once >= 10 practices done
 
   @override
   void initState() {
@@ -69,7 +74,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
       debugPrint('Dashboard: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}');
       final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}')).timeout(const Duration(seconds: 10));
       final historyRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}')).timeout(const Duration(seconds: 10));
-      debugPrint('Dashboard: statsRes=${statsRes.statusCode}, historyRes=${historyRes.statusCode}');
+      final profileRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}')).timeout(const Duration(seconds: 10));
+      debugPrint('Dashboard: statsRes=${statsRes.statusCode}, historyRes=${historyRes.statusCode}, profileRes=${profileRes.statusCode}');
 
       if (statsRes.statusCode == 200) {
         final data = jsonDecode(statsRes.body);
@@ -107,7 +113,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
         }
 
         int overallScore = (overallStats['avgScore'] ?? 0).toInt();
-        // FIX: Properly extract totalSessions from overallStats
         int totalSessions = overallStats['totalSessions'] ?? 0;
         
         _userStats = {
@@ -115,7 +120,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
           'avgScore': overallScore,
           'dayStreak': currentStreak, 
         };
-        
+        _practiceCount = totalSessions;
         debugPrint('Dashboard Stats: totalSessions=$totalSessions, avgScore=$overallScore, dayStreak=$currentStreak');
       }
 
@@ -124,12 +129,36 @@ class _DashBoardPageState extends State<DashBoardPage> {
         debugPrint('Recent sessions count: ${_recentSessionsList.length}');
       }
 
+      // Fetch level info from user profile
+      if (profileRes.statusCode == 200) {
+        final profileData = jsonDecode(profileRes.body);
+        final int totalSessions = _userStats['totalSessions'] ?? 0;
+
+        if (totalSessions >= 10) {
+          // Official level based on average score
+          _levelLocked = true;
+          final int avgScore = _userStats['avgScore'] ?? 0;
+          _userLevel = _scoreToLevel(avgScore);
+        } else {
+          // Use the demographic initial level stored in the backend
+          _levelLocked = false;
+          _userLevel = profileData['level'] ?? profileData['initialLevel'] ?? 'Beginner';
+        }
+      }
+
       setState(() => _isLoading = false);
     } catch (e) {
       debugPrint("Dashboard ERROR: $e");
       debugPrint("Dashboard ERROR type: ${e.runtimeType}");
       setState(() => _isLoading = false);
     }
+  }
+
+  /// Converts an average score to a level string
+  String _scoreToLevel(int avgScore) {
+    if (avgScore >= 80) return 'Advanced';
+    if (avgScore >= 60) return 'Intermediate';
+    return 'Beginner';
   }
 
   // --- FIXED SMART ROUTER ---
@@ -167,6 +196,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
               children: [
                 _headerWithOverlappingCard(context),
                 const SizedBox(height: 60), 
+                _levelStatusCard(context),
+                const SizedBox(height: 12),
                 _startPracticeButton(),
                 const SizedBox(height: 12),
                 _learningResourcesButton(context),
@@ -249,6 +280,153 @@ class _DashBoardPageState extends State<DashBoardPage> {
               ],
             ),
           ),
+        ),
+      ],
+    );
+  }
+
+  // ─── Level Status Card (Phase 2) ────────────────────────────────────────────
+  Widget _levelStatusCard(BuildContext context) {
+    const int targetPractices = 10;
+    final int done = _practiceCount.clamp(0, targetPractices);
+    final double progress = done / targetPractices;
+
+    Color levelColor;
+    IconData levelIcon;
+    switch (_userLevel) {
+      case 'Advanced':
+        levelColor = const Color(0xFFB45FD4);
+        levelIcon = Icons.emoji_events_outlined;
+        break;
+      case 'Intermediate':
+        levelColor = const Color(0xFF3F7CF4);
+        levelIcon = Icons.trending_up;
+        break;
+      default:
+        levelColor = const Color(0xFF3FBD7A);
+        levelIcon = Icons.spa_outlined;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(18),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
+        ),
+        child: _levelLocked
+            ? _buildLockedLevel(levelColor, levelIcon)
+            : _buildEvaluationProgress(done, targetPractices, progress, levelColor, levelIcon),
+      ),
+    );
+  }
+
+  Widget _buildLockedLevel(Color levelColor, IconData levelIcon) {
+    return Row(
+      children: [
+        Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: levelColor.withAlpha(25),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(levelIcon, color: levelColor, size: 26),
+        ),
+        const SizedBox(width: 14),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Your Level', style: TextStyle(fontSize: 12, color: Colors.grey)),
+              const SizedBox(height: 2),
+              FittedBox(
+                fit: BoxFit.scaleDown,
+                child: Text(
+                  _userLevel,
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: levelColor),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildEvaluationProgress(
+    int done, int total, double progress, Color levelColor, IconData levelIcon) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Container(
+              width: 46,
+              height: 46,
+              decoration: BoxDecoration(
+                color: const Color(0xFFF5A623).withAlpha(25),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.hourglass_top_rounded, color: Color(0xFFF5A623), size: 24),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Evaluating Level',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                      ),
+                      Text(
+                        '${(progress * 100).toInt()}%',
+                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFF5A623)),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    '$done/$total Practices Completed',
+                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 12),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: LinearProgressIndicator(
+            value: progress,
+            minHeight: 8,
+            backgroundColor: Colors.grey.shade200,
+            valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF5A623)),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(top: 2),
+              child: Icon(Icons.info_outline, size: 13, color: Colors.grey.shade400),
+            ),
+            const SizedBox(width: 6),
+            Expanded(
+              child: Text(
+                'Initial level: $_userLevel · Official level unlocks after $total practices',
+                style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+              ),
+            ),
+          ],
         ),
       ],
     );

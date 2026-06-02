@@ -6,7 +6,7 @@ import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../transitions/page_transitions.dart';
-import 'login_screen.dart';
+import 'demographic_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -72,9 +72,13 @@ class _SignupScreenState extends State<SignupScreen> {
 
         if (response.statusCode == 201) {
           if (!mounted) return;
+          // Extract the newly created userId from the response
+          final String newUserId = data['user']?['_id'] ?? data['userId'] ?? '';
+          final String username = _usernameController.text.trim();
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Welcome, ${_usernameController.text}! Account created.'),
+              content: Text('Welcome, $username! Account created.'),
               backgroundColor: AppTheme.primaryColor,
             ),
           );
@@ -82,8 +86,14 @@ class _SignupScreenState extends State<SignupScreen> {
           await Future.delayed(const Duration(milliseconds: 500));
           if (!mounted) return;
 
+          // Navigate to Demographic screen for onboarding
           Navigator.of(context).pushReplacement(
-            ModernPageRoute(page: const LoginScreen()), 
+            ModernPageRoute(
+              page: DemographicScreen(
+                userId: newUserId,
+                username: username,
+              ),
+            ),
           );
         } else {
           if (!mounted) return;

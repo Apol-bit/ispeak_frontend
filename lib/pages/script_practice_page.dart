@@ -180,7 +180,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
 
   void _initializeKaraoke() {
     // Parse the script text into individual words
-    final content = widget.script['transcript'] ?? widget.script['content'] ?? '';
+    final String content = widget.script['transcript']?.toString() ?? widget.script['content']?.toString() ?? '';
     _words = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
 
     // Try to use word timestamps from reference audio if available

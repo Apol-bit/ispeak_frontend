@@ -12,6 +12,9 @@ class EditProfileScreen extends StatefulWidget {
   final String lastName;
   final String username;
   final String userEmail;
+  final int? age;
+  final String? gender;
+  final String? gradeLevel;
 
   const EditProfileScreen({
     super.key,
@@ -20,6 +23,9 @@ class EditProfileScreen extends StatefulWidget {
     required this.lastName,
     required this.username,
     required this.userEmail,
+    this.age,
+    this.gender,
+    this.gradeLevel,
   });
 
   @override
@@ -31,6 +37,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   late TextEditingController _lastNameController;
   late TextEditingController _usernameController;
   late TextEditingController _emailController;
+  late TextEditingController _ageController;
+  String? _selectedGender;
+  String? _selectedGradeLevel;
   final _formKey = GlobalKey<FormState>();
   
   bool _isLoading = false; 
@@ -42,6 +51,25 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _lastNameController = TextEditingController(text: widget.lastName);
     _usernameController = TextEditingController(text: widget.username);
     _emailController = TextEditingController(text: widget.userEmail);
+    _ageController = TextEditingController(text: widget.age != null ? widget.age.toString() : '');
+    
+    final List<String> genders = ['Male', 'Female', 'Prefer not to say'];
+    if (widget.gender != null && genders.contains(widget.gender)) {
+      _selectedGender = widget.gender;
+    }
+    
+    final List<String> grades = [
+      'Elementary (Grades 1–6)',
+      'Junior High School (Grades 7–10)',
+      'Senior High School (Grades 11–12)',
+      'College / University',
+      'Graduate / Post-graduate',
+      'Working Professional',
+      'Other',
+    ];
+    if (widget.gradeLevel != null && grades.contains(widget.gradeLevel)) {
+      _selectedGradeLevel = widget.gradeLevel;
+    }
   }
 
   @override
@@ -50,6 +78,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _lastNameController.dispose();
     _usernameController.dispose();
     _emailController.dispose();
+    _ageController.dispose();
     super.dispose();
   }
 
@@ -66,6 +95,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'firstName': _firstNameController.text.trim(),
             'lastName': _lastNameController.text.trim(),
             'username': _usernameController.text.trim(),
+            'age': _ageController.text.trim().isNotEmpty ? int.tryParse(_ageController.text.trim()) : null,
+            'gender': _selectedGender,
+            'gradeLevel': _selectedGradeLevel,
             // EMAIL OMITTED ON PURPOSE FOR SECURITY
           }),
         );
@@ -264,6 +296,118 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+
+                      // --- DEMOGRAPHICS CONTAINER (Age, Gender, Grade) ---
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha((0.02 * 255).round()),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Personal Details',
+                              style: TextStyle(
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.black87),
+                            ),
+                            const SizedBox(height: 16),
+                            
+                            // Age Input
+                            const Text('Age', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            const SizedBox(height: 8),
+                            CustomTextField(
+                              controller: _ageController,
+                              hintText: 'Enter your age',
+                              keyboardType: TextInputType.number,
+                              validator: (value) {
+                                if (value != null && value.isNotEmpty) {
+                                  final ageVal = int.tryParse(value);
+                                  if (ageVal == null || ageVal <= 0 || ageVal > 120) {
+                                    return 'Please enter a valid age';
+                                  }
+                                }
+                                return null;
+                              },
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Gender Dropdown
+                            const Text('Gender', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              value: _selectedGender,
+                              hint: const Text('Select Gender'),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                              ),
+                              items: ['Male', 'Female', 'Prefer not to say']
+                                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                  .toList(),
+                              onChanged: (val) => setState(() => _selectedGender = val),
+                            ),
+                            
+                            const SizedBox(height: 16),
+                            
+                            // Grade Level Dropdown
+                            const Text('Grade / Career Level', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            const SizedBox(height: 8),
+                            DropdownButtonFormField<String>(
+                              value: _selectedGradeLevel,
+                              hint: const Text('Select Grade / Level'),
+                              decoration: InputDecoration(
+                                filled: true,
+                                fillColor: Colors.grey[50],
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                              ),
+                              items: [
+                                'Elementary (Grades 1–6)',
+                                'Junior High School (Grades 7–10)',
+                                'Senior High School (Grades 11–12)',
+                                'College / University',
+                                'Graduate / Post-graduate',
+                                'Working Professional',
+                                'Other'
+                              ]
+                                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                  .toList(),
+                              onChanged: (val) => setState(() => _selectedGradeLevel = val),
                             ),
                           ],
                         ),
