@@ -487,6 +487,17 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                   },
                 ),
               ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3F7CF4).withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  '${(_scrollSpeed / 40.0).toStringAsFixed(1)}x',
+                  style: const TextStyle(color: Color(0xFF3F7CF4), fontSize: 12, fontWeight: FontWeight.bold),
+                ),
+              ),
             ],
           ),
         ],
