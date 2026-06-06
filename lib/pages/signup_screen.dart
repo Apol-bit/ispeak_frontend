@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../config/responsive.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
@@ -125,27 +126,28 @@ class _SignupScreenState extends State<SignupScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context);
     return Scaffold(
       resizeToAvoidBottomInset: true,
       backgroundColor: Colors.grey[100],
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: r.padH(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
+                SizedBox(height: r.h(40)),
 
                 Hero(
                   tag: 'logo', 
                   child: Image.asset(
                     'assets/images/ispeak_logo.png',
-                    height: 80,
+                    height: r.h(80),
                     ),
                   ),
 
-                const SizedBox(height: 5),
+                SizedBox(height: r.h(5)),
 
                 Hero(
                   tag: 'brand_text', 
@@ -154,7 +156,7 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: Text(
                       'iSpeak',
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: r.sp(32),
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryColor,
@@ -163,24 +165,24 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                SizedBox(height: r.h(8)),
 
-                const Text(
+                Text(
                   'Master Your Public Speaking',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: r.sp(14),
                     color: Colors.grey,
                   ),
                 ),
 
-                const SizedBox(height: 50),
+                SizedBox(height: r.h(50)),
 
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: r.pad(24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: r.radius(16),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withAlpha((0.08 * 255).round()),
@@ -194,16 +196,16 @@ class _SignupScreenState extends State<SignupScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Create Account',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: r.sp(22),
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        SizedBox(height: r.h(24)),
 
                         Row(
                           children: [
@@ -211,8 +213,8 @@ class _SignupScreenState extends State<SignupScreen> {
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('First Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                  const SizedBox(height: 8),
+                                  Text('First Name', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                                  SizedBox(height: r.h(8)),
                                   CustomTextField(
                                     controller: _firstNameController,
                                     hintText: 'First Name',
@@ -221,13 +223,13 @@ class _SignupScreenState extends State<SignupScreen> {
                                 ],
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: r.w(12)),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  const Text('Last Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                  const SizedBox(height: 8),
+                                  Text('Last Name', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                                  SizedBox(height: r.h(8)),
                                   CustomTextField(
                                     controller: _lastNameController,
                                     hintText: 'Last Name',
@@ -239,10 +241,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
-                        const Text('Username', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                        const SizedBox(height: 8),
+                        Text('Username', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _usernameController,
                           hintText: 'Choose a username',
@@ -253,10 +255,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
-                        const Text('Email Address', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                        const SizedBox(height: 8),
+                        Text('Email Address', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _emailController,
                           hintText: 'Enter your email',
@@ -268,10 +270,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           },
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
-                        const Text('Password', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                        const SizedBox(height: 8),
+                        Text('Password', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _passwordController,
                           hintText: 'Enter your password',
@@ -287,10 +289,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
-                        const Text('Confirm Password', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                        const SizedBox(height: 8),
+                        Text('Confirm Password', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _confirmPasswordController,
                           hintText: 'Confirm your password',
@@ -306,29 +308,29 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
                         Row(
                           children: [
                             SizedBox(
-                              width: 20,
-                              height: 20,
+                              width: r.w(20),
+                              height: r.w(20),
                               child: Checkbox(
                                 value: _agreeToTerms,
                                 onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
                                 activeColor: AppTheme.primaryColor,
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                                shape: RoundedRectangleBorder(borderRadius: r.radius(4)),
                               ),
                             ),
-                            const SizedBox(width: 12),
+                            SizedBox(width: r.w(12)),
                             Expanded(
                               child: GestureDetector(
                                 onTap: () => setState(() => _agreeToTerms = !_agreeToTerms),
                                 child: RichText(
                                   text: TextSpan(
                                     children: [
-                                      TextSpan(text: 'I agree to the ', style: TextStyle(fontSize: 12, color: Colors.grey[600])),
-                                      TextSpan(text: 'Terms & Conditions', style: TextStyle(fontSize: 12, color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                                      TextSpan(text: 'I agree to the ', style: TextStyle(fontSize: r.sp(12), color: Colors.grey[600])),
+                                      TextSpan(text: 'Terms & Conditions', style: TextStyle(fontSize: r.sp(12), color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
                                     ],
                                   ),
                                 ),
@@ -337,11 +339,11 @@ class _SignupScreenState extends State<SignupScreen> {
                           ],
                         ),
 
-                        const SizedBox(height: 28),
+                        SizedBox(height: r.h(28)),
 
                         _isLoading
                             ? SizedBox(
-                                height: 54,
+                                height: r.h(54),
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     color: AppTheme.primaryColor,
@@ -354,16 +356,16 @@ class _SignupScreenState extends State<SignupScreen> {
                                 onPressed: _handleSignUp,
                               ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: r.h(16)),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text('Already have an account?', style: TextStyle(fontSize: 13, color: Colors.grey)),
-                            const SizedBox(width: 4),
+                            Text('Already have an account?', style: TextStyle(fontSize: r.sp(13), color: Colors.grey)),
+                            SizedBox(width: r.w(4)),
                             GestureDetector(
                               onTap: _goToLogin,
-                              child: const Text('Log In', style: TextStyle(fontSize: 13, color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                              child: Text('Log In', style: TextStyle(fontSize: r.sp(13), color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
                             ),
                           ],
                         ),
@@ -372,18 +374,18 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                SizedBox(height: r.h(24)),
 
                 Text(
                   '© 2026 iSpeak. English & Filipino Supported',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: r.sp(11),
                     color: Colors.grey[600],
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: r.h(20)),
               ],
             ),
           ),

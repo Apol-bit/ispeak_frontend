@@ -3,6 +3,7 @@ import '../widgets/feature_card.dart';
 import '../widgets/primary_button.dart';
 import '../theme/app_theme.dart';
 import '../transitions/page_transitions.dart';
+import '../config/responsive.dart';
 import 'login_screen.dart';
 
 class SplashScreen extends StatelessWidget {
@@ -17,8 +18,7 @@ class SplashScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // UNIVERSAL FIX 1: Grab the exact dimensions of the phone's screen
-    final size = MediaQuery.of(context).size;
+    final r = Responsive(context);
 
     return Scaffold(
       backgroundColor: Colors.grey[100],
@@ -30,28 +30,28 @@ class SplashScreen extends StatelessWidget {
                 constraints: BoxConstraints(minHeight: constraints.maxHeight),
                 child: IntrinsicHeight(
                   child: Padding(
-                    padding: const EdgeInsets.all(24),
+                    padding: r.pad(24),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        SizedBox(height: size.height * 0.05),
+                        SizedBox(height: r.h(40)),
 
                         Hero(
                           tag: 'logo',
                           child: Image.asset(
                             'assets/images/ispeak_logo.png',
-                            height: size.height * 0.15, 
+                            height: r.h(120),
                           ),
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
                         Hero(tag: 'brand_text', child: Material(
                           type: MaterialType.transparency,
                           child: Text(
                             "iSpeak", 
                             style: TextStyle(
-                              fontSize: 52,
+                              fontSize: r.sp(52),
                               fontFamily: 'Inter',
                               fontWeight: FontWeight.bold,
                               color: AppTheme.textPrimary,
@@ -59,15 +59,15 @@ class SplashScreen extends StatelessWidget {
                           ),
                         )),
 
-                        const SizedBox(height: 10),
+                        SizedBox(height: r.h(10)),
 
-                        const Text(
+                        Text(
                           "Master Your Public Speaking\nSkills with Real-Time Feedback",
                           textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 14),
+                          style: TextStyle(fontSize: r.sp(14)),
                         ),
 
-                        SizedBox(height: size.height * 0.05),
+                        SizedBox(height: r.h(40)),
 
                         const FeatureCard(
                           icon: Icons.volume_up,
@@ -75,7 +75,7 @@ class SplashScreen extends StatelessWidget {
                           subtitle: "Track pace, clarity & energy",
                         ),
 
-                        const SizedBox(height: 15),
+                        SizedBox(height: r.h(15)),
 
                         const FeatureCard(
                           icon: Icons.trending_up,
@@ -83,7 +83,7 @@ class SplashScreen extends StatelessWidget {
                           subtitle: "See your improvement over time",
                         ),
 
-                        const SizedBox(height: 15),
+                        SizedBox(height: r.h(15)),
 
                         const FeatureCard(
                           icon: Icons.language,
@@ -92,7 +92,7 @@ class SplashScreen extends StatelessWidget {
                         ),
 
                         const Spacer(),
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
                         PrimaryButton(
                           text: "Get Started",

@@ -166,7 +166,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
 
-  // ── KARAOKE TELEPROMPTER STATE ──────────────────────────────────
+  // ── TELEPROMPTER STATE ──────────────────────────────────────
   List<String> _words = [];
   List<_WordTiming> _wordTimings = [];
   int _currentWordIndex = -1; // -1 means not started
@@ -175,10 +175,10 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   @override
   void initState() {
     super.initState();
-    _initializeKaraoke();
+    _initializeTeleprompter();
   }
 
-  void _initializeKaraoke() {
+  void _initializeTeleprompter() {
     // Parse the script text into individual words
     final String content = widget.script['transcript']?.toString() ?? widget.script['content']?.toString() ?? '';
     _words = content.split(RegExp(r'\s+')).where((w) => w.isNotEmpty).toList();
@@ -216,7 +216,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     super.dispose();
   }
 
-  void _updateKaraokePosition() {
+  void _updateTeleprompterPosition() {
     if (_wordTimings.isEmpty) return;
 
     final elapsed = _seconds.toDouble();
@@ -287,7 +287,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (mounted) {
             setState(() => _seconds++);
-            _updateKaraokePosition();
+            _updateTeleprompterPosition();
           }
         });
       }
@@ -388,8 +388,8 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                 padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
                 child: Column(
                   children: [
-                    // ── KARAOKE TELEPROMPTER ──────────────────────
-                    _buildKaraokeTeleprompter(title, level, language),
+                    // ── TELEPROMPTER ──────────────────────
+                    _buildTeleprompter(title, level, language),
 
                     const SizedBox(height: 30),
 
@@ -412,8 +412,8 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
     );
   }
 
-  // ── KARAOKE TELEPROMPTER WIDGET ──────────────────────────────────
-  Widget _buildKaraokeTeleprompter(String title, String level, String language) {
+  // ── TELEPROMPTER WIDGET ──────────────────────────────────
+  Widget _buildTeleprompter(String title, String level, String language) {
     final isActive = _status == PracticeStatus.recording || _status == PracticeStatus.paused;
     
     return Container(
@@ -464,7 +464,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
           ),
           const SizedBox(height: 14),
           
-          // ── THE KARAOKE TEXT ──────────────────────────────────
+          // ── THE TELEPROMPTER TEXT ──────────────────────────────────
           Container(
             constraints: const BoxConstraints(maxHeight: 200),
             child: SingleChildScrollView(

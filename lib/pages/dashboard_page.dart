@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 import 'learning_resources_page.dart';
 import '../config/api_config.dart'; 
+import '../config/responsive.dart';
 import 'profile_screen.dart';
 import 'result_page.dart';
 import 'script_practice_page.dart';
@@ -195,15 +196,15 @@ class _DashBoardPageState extends State<DashBoardPage> {
             child: Column(
               children: [
                 _headerWithOverlappingCard(context),
-                const SizedBox(height: 60), 
+                SizedBox(height: Responsive(context).h(60)), 
                 _levelStatusCard(context),
-                const SizedBox(height: 12),
-                _startPracticeButton(),
-                const SizedBox(height: 12),
+                SizedBox(height: Responsive(context).h(12)),
+                _startPracticeButton(context),
+                SizedBox(height: Responsive(context).h(12)),
                 _learningResourcesButton(context),
-                const SizedBox(height: 20),
-                _recentSessions(),
-                const SizedBox(height: 120), 
+                SizedBox(height: Responsive(context).h(20)),
+                _recentSessions(context),
+                SizedBox(height: Responsive(context).h(120)), 
               ],
             ),
           ),
@@ -211,6 +212,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
   }
 
   Widget _headerWithOverlappingCard(BuildContext context) {
+    final r = Responsive(context);
     final double topPadding = MediaQuery.of(context).padding.top;
     return Stack(
       clipBehavior: Clip.none,
@@ -219,28 +221,28 @@ class _DashBoardPageState extends State<DashBoardPage> {
         Container(
           width: double.infinity,
           height: MediaQuery.of(context).size.height * 0.22 + topPadding, 
-          padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
+          padding: EdgeInsets.fromLTRB(r.w(20), topPadding + r.h(15), r.w(20), r.h(20)),
           decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Expanded(
+              Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('iSpeak', style: TextStyle(color: Colors.white, fontSize: 30, fontWeight: FontWeight.bold)),
-                    SizedBox(height: 4),
-                    Text('Improve your public speaking', style: TextStyle(color: Colors.white70, fontSize: 13)),
+                    Text('iSpeak', style: TextStyle(color: Colors.white, fontSize: r.sp(30), fontWeight: FontWeight.bold)),
+                    SizedBox(height: r.h(4)),
+                    Text('Improve your public speaking', style: TextStyle(color: Colors.white70, fontSize: r.sp(13))),
                   ],
                 ),
               ),
               GestureDetector(
                 onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen(userId: widget.userId))),
-                child: const CircleAvatar(
-                  radius: 24,
+                child: CircleAvatar(
+                  radius: r.w(24),
                   backgroundColor: Colors.white,
-                  child: Icon(Icons.person_outline, color: Color(0xFF3F7CF4), size: 28),
+                  child: Icon(Icons.person_outline, color: const Color(0xFF3F7CF4), size: r.icon(28)),
                 ),
               ),
             ],
@@ -248,13 +250,13 @@ class _DashBoardPageState extends State<DashBoardPage> {
         ),
         
         Positioned(
-          bottom: -40, 
+          bottom: -r.h(40), 
           child: Container(
             width: MediaQuery.of(context).size.width * 0.88,
-            padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
+            padding: r.padHV(12, 20),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: r.radius(16),
               boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 12, offset: Offset(0, 4))],
             ),
             child: Row(
@@ -287,6 +289,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
   // ─── Level Status Card (Phase 2) ────────────────────────────────────────────
   Widget _levelStatusCard(BuildContext context) {
+    final r = Responsive(context);
     const int targetPractices = 10;
     final int done = _practiceCount.clamp(0, targetPractices);
     final double progress = done / targetPractices;
@@ -308,46 +311,47 @@ class _DashBoardPageState extends State<DashBoardPage> {
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: r.padH(20),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.all(18),
+        padding: r.pad(18),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: r.radius(16),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
         ),
         child: _levelLocked
-            ? _buildLockedLevel(levelColor, levelIcon)
-            : _buildEvaluationProgress(done, targetPractices, progress, levelColor, levelIcon),
+            ? _buildLockedLevel(context, levelColor, levelIcon)
+            : _buildEvaluationProgress(context, done, targetPractices, progress, levelColor, levelIcon),
       ),
     );
   }
 
-  Widget _buildLockedLevel(Color levelColor, IconData levelIcon) {
+  Widget _buildLockedLevel(BuildContext context, Color levelColor, IconData levelIcon) {
+    final r = Responsive(context);
     return Row(
       children: [
         Container(
-          width: 50,
-          height: 50,
+          width: r.w(50),
+          height: r.w(50),
           decoration: BoxDecoration(
             color: levelColor.withAlpha(25),
             shape: BoxShape.circle,
           ),
-          child: Icon(levelIcon, color: levelColor, size: 26),
+          child: Icon(levelIcon, color: levelColor, size: r.icon(26)),
         ),
-        const SizedBox(width: 14),
+        SizedBox(width: r.w(14)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text('Your Level', style: TextStyle(fontSize: 12, color: Colors.grey)),
-              const SizedBox(height: 2),
+              Text('Your Level', style: TextStyle(fontSize: r.sp(12), color: Colors.grey)),
+              SizedBox(height: r.h(2)),
               FittedBox(
                 fit: BoxFit.scaleDown,
                 child: Text(
                   _userLevel,
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: levelColor),
+                  style: TextStyle(fontSize: r.sp(20), fontWeight: FontWeight.bold, color: levelColor),
                 ),
               ),
             ],
@@ -358,22 +362,23 @@ class _DashBoardPageState extends State<DashBoardPage> {
   }
 
   Widget _buildEvaluationProgress(
-    int done, int total, double progress, Color levelColor, IconData levelIcon) {
+    BuildContext context, int done, int total, double progress, Color levelColor, IconData levelIcon) {
+    final r = Responsive(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Container(
-              width: 46,
-              height: 46,
+              width: r.w(46),
+              height: r.w(46),
               decoration: BoxDecoration(
                 color: const Color(0xFFF5A623).withAlpha(25),
                 shape: BoxShape.circle,
               ),
-              child: const Icon(Icons.hourglass_top_rounded, color: Color(0xFFF5A623), size: 24),
+              child: Icon(Icons.hourglass_top_rounded, color: const Color(0xFFF5A623), size: r.icon(24)),
             ),
-            const SizedBox(width: 12),
+            SizedBox(width: r.w(12)),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -381,49 +386,49 @@ class _DashBoardPageState extends State<DashBoardPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text(
+                      Text(
                         'Evaluating Level',
-                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.bold, color: Colors.black87),
                       ),
                       Text(
                         '${(progress * 100).toInt()}%',
-                        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: Color(0xFFF5A623)),
+                        style: TextStyle(fontSize: r.sp(14), fontWeight: FontWeight.bold, color: const Color(0xFFF5A623)),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  SizedBox(height: r.h(2)),
                   Text(
                     '$done/$total Practices Completed',
-                    style: const TextStyle(fontSize: 12, color: Colors.grey),
+                    style: TextStyle(fontSize: r.sp(12), color: Colors.grey),
                   ),
                 ],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 12),
+        SizedBox(height: r.h(12)),
         ClipRRect(
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: r.radius(8),
           child: LinearProgressIndicator(
             value: progress,
-            minHeight: 8,
+            minHeight: r.h(8),
             backgroundColor: Colors.grey.shade200,
             valueColor: const AlwaysStoppedAnimation<Color>(Color(0xFFF5A623)),
           ),
         ),
-        const SizedBox(height: 10),
+        SizedBox(height: r.h(10)),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: 2),
-              child: Icon(Icons.info_outline, size: 13, color: Colors.grey.shade400),
+              padding: r.padOnly(top: 2),
+              child: Icon(Icons.info_outline, size: r.icon(13), color: Colors.grey.shade400),
             ),
-            const SizedBox(width: 6),
+            SizedBox(width: r.w(6)),
             Expanded(
               child: Text(
                 'Initial level: $_userLevel · Official level unlocks after $total practices',
-                style: TextStyle(fontSize: 11.5, color: Colors.grey.shade500),
+                style: TextStyle(fontSize: r.sp(11.5), color: Colors.grey.shade500),
               ),
             ),
           ],
@@ -432,30 +437,31 @@ class _DashBoardPageState extends State<DashBoardPage> {
     );
   }
 
-  Widget _startPracticeButton() {
+  Widget _startPracticeButton(BuildContext context) {
+    final r = Responsive(context);
      return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: r.padH(20),
       child: GestureDetector(
         onTap: () => widget.onStartPractice(),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          padding: r.padHV(16, 16),
           decoration: BoxDecoration(
             color: const Color(0xFF3F7CF4),
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: r.radius(16),
             boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.mic, color: Colors.white, size: 26),
-              SizedBox(width: 10),
+              Icon(Icons.mic, color: Colors.white, size: r.icon(26)),
+              SizedBox(width: r.w(10)),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Start Practice', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-                  SizedBox(height: 2),
-                  Text('English & Filipino supported', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                  Text('Start Practice', style: TextStyle(color: Colors.white, fontSize: r.sp(16), fontWeight: FontWeight.bold)),
+                  SizedBox(height: r.h(2)),
+                  Text('English & Filipino supported', style: TextStyle(color: Colors.white70, fontSize: r.sp(12))),
                 ],
               ),
             ],
@@ -466,8 +472,9 @@ class _DashBoardPageState extends State<DashBoardPage> {
   }
 
   Widget _learningResourcesButton(BuildContext context) {
+    final r = Responsive(context);
      return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: r.padH(20),
       child: GestureDetector(
         onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => LearningResourcesScreen(
           userId: widget.userId,
@@ -475,19 +482,19 @@ class _DashBoardPageState extends State<DashBoardPage> {
         ))),
         child: Container(
           width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 16),
+          padding: r.padHV(16, 16),
           decoration: BoxDecoration(
             color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: r.radius(16),
             border: Border.all(color: const Color(0xFF3F7CF4), width: 1.5),
             boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8, offset: Offset(0, 4))],
           ),
-          child: const Row(
+          child: Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.menu_book_outlined, color: Color(0xFF3F7CF4), size: 20),
-              SizedBox(width: 8),
-              Text('Learning Resources', style: TextStyle(color: Color(0xFF3F7CF4), fontSize: 15, fontWeight: FontWeight.w600)),
+              Icon(Icons.menu_book_outlined, color: const Color(0xFF3F7CF4), size: r.icon(20)),
+              SizedBox(width: r.w(8)),
+              Text('Learning Resources', style: TextStyle(color: const Color(0xFF3F7CF4), fontSize: r.sp(15), fontWeight: FontWeight.w600)),
             ],
           ),
         ),
@@ -495,21 +502,22 @@ class _DashBoardPageState extends State<DashBoardPage> {
     );
   }
 
-  Widget _recentSessions() {
+  Widget _recentSessions(BuildContext context) {
+    final r = Responsive(context);
     if (_recentSessionsList.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(40),
-        child: Text("No sessions yet. Start practicing!", style: TextStyle(color: Colors.grey)),
+      return Padding(
+        padding: r.pad(40),
+        child: Text("No sessions yet. Start practicing!", style: TextStyle(color: Colors.grey, fontSize: r.sp(13))),
       );
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
+      padding: r.padH(20),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('Recent Sessions', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
+          Text('Recent Sessions', style: TextStyle(fontSize: r.sp(18), fontWeight: FontWeight.bold)),
+          SizedBox(height: r.h(12)),
           ..._recentSessionsList.map((session) {
             String rawDate = session['createdAt'] ?? '';
             String shortDate = rawDate.isNotEmpty ? rawDate.substring(0, 10) : 'Unknown Date';
@@ -535,7 +543,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
               },
               child: _SessionCard(
                 date: shortDate,
-                createdTime: createdTime,  // NEW: Pass the time
+                createdTime: createdTime,
                 score: score.toString(),
                 pace: '${session['paceScore'] ?? 0}%', 
                 clarity: '${session['clarityScore'] ?? 0}%',

@@ -4,6 +4,7 @@ import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../transitions/page_transitions.dart';
 import '../services/auth_service.dart';
+import '../config/responsive.dart';
 import '../main.dart';
 import 'signup_screen.dart';
 
@@ -94,26 +95,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final r = Responsive(context);
     return Scaffold(
       backgroundColor: Colors.grey[100],
       body: SafeArea(
         child: SingleChildScrollView(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24),
+            padding: r.padH(24),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                const SizedBox(height: 40),
+                SizedBox(height: r.h(40)),
 
                 Hero(
                   tag: 'logo',
                   child: Image.asset(
                     'assets/images/ispeak_logo.png',
-                    height: 80,
+                    height: r.h(80),
                   ),
                 ),
 
-                const SizedBox(height: 5),
+                SizedBox(height: r.h(5)),
 
                 Hero(
                   tag: 'brand_text',
@@ -122,7 +124,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Text(
                       'iSpeak',
                       style: TextStyle(
-                        fontSize: 32,
+                        fontSize: r.sp(32),
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.bold,
                         color: AppTheme.primaryColor,
@@ -131,24 +133,24 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 8),
+                SizedBox(height: r.h(8)),
 
-                const Text(
+                Text(
                   'Master Your Public Speaking',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: r.sp(14),
                     color: Colors.grey,
                   ),
                 ),
 
-                const SizedBox(height: 50),
+                SizedBox(height: r.h(50)),
 
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: r.pad(24),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: r.radius(16),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.08),
@@ -162,27 +164,27 @@ class _LoginScreenState extends State<LoginScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
+                        Text(
                           'Welcome Back',
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: r.sp(22),
                             fontWeight: FontWeight.bold,
                             color: Colors.black87,
                           ),
                         ),
 
-                        const SizedBox(height: 24),
+                        SizedBox(height: r.h(24)),
 
-                        const Text(
+                        Text(
                           'Email Address',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: r.sp(13),
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
                         ),
 
-                        const SizedBox(height: 8),
+                        SizedBox(height: r.h(8)),
 
                         CustomTextField(
                           controller: _emailController,
@@ -190,18 +192,18 @@ class _LoginScreenState extends State<LoginScreen> {
                           keyboardType: TextInputType.emailAddress,
                         ),
 
-                        const SizedBox(height: 20),
+                        SizedBox(height: r.h(20)),
 
-                        const Text(
+                        Text(
                           'Password',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: r.sp(13),
                             fontWeight: FontWeight.w600,
                             color: Colors.black87,
                           ),
                         ),
 
-                        const SizedBox(height: 8),
+                        SizedBox(height: r.h(8)),
 
                         CustomTextField(
                           controller: _passwordController,
@@ -222,7 +224,7 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 12),
+                        SizedBox(height: r.h(12)),
 
                         Align(
                           alignment: Alignment.centerRight,
@@ -237,7 +239,7 @@ class _LoginScreenState extends State<LoginScreen> {
                             child: Text(
                               'Forgot Password?',
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: r.sp(13),
                                 color: AppTheme.primaryColor,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -245,11 +247,11 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
 
-                        const SizedBox(height: 28),
+                        SizedBox(height: r.h(28)),
 
                         _isLoading
                             ? SizedBox(
-                                height: 54,
+                                height: r.h(54),
                                 child: Center(
                                   child: CircularProgressIndicator(
                                     color: AppTheme.primaryColor,
@@ -262,25 +264,25 @@ class _LoginScreenState extends State<LoginScreen> {
                                 onPressed: _handleLogin,
                               ),
 
-                        const SizedBox(height: 16),
+                        SizedBox(height: r.h(16)),
 
                         Row(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            const Text(
+                            Text(
                               "Don't have an account?",
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: r.sp(13),
                                 color: Colors.grey,
                               ),
                             ),
-                            const SizedBox(width: 4),
+                            SizedBox(width: r.w(4)),
                             GestureDetector(
                               onTap: _goToSignUp,
                               child: Text(
                                 'Sign Up',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: r.sp(13),
                                   color: AppTheme.primaryColor,
                                   fontWeight: FontWeight.w600,
                                 ),
@@ -293,18 +295,18 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                 ),
 
-                const SizedBox(height: 24),
+                SizedBox(height: r.h(24)),
 
                 Text(
                   '© 2026 iSpeak. English & Filipino Supported',
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: r.sp(11),
                     color: Colors.grey[600],
                   ),
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: r.h(20)),
               ],
             ),
           ),
