@@ -11,11 +11,13 @@ import 'time_challenge_page.dart';
 class ProgressPage extends StatefulWidget {
   final String userId;
   final VoidCallback onStartPractice; 
+  final int refreshKey;
 
   const ProgressPage({
     super.key, 
     required this.userId,
     required this.onStartPractice,
+    this.refreshKey = 0,
   });
 
   @override
@@ -76,6 +78,14 @@ class _ProgressPageState extends State<ProgressPage> {
   void initState() {
     super.initState();
     _fetchUserProgress();
+  }
+
+  @override
+  void didUpdateWidget(ProgressPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshKey != widget.refreshKey) {
+      _fetchUserProgress();
+    }
   }
 
   Future<void> _fetchUserProgress() async {
@@ -294,7 +304,7 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
   if (challengeData != null && challengeData is Map) {
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)
-    ));
+    )).then((_) => _fetchUserProgress());
     return;
   }
   
@@ -302,7 +312,7 @@ void _routeToSpecificPractice(BuildContext context, Map<String, dynamic> session
   if (scriptData != null && scriptData is Map) {
     Navigator.push(context, MaterialPageRoute(
       builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)
-    ));
+    )).then((_) => _fetchUserProgress());
     return;
   }
   

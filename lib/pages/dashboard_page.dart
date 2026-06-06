@@ -14,12 +14,14 @@ class DashBoardPage extends StatefulWidget {
   final VoidCallback onStartPractice;
   final VoidCallback onLearningResources;
   final String userId;
+  final int refreshKey;
 
   const DashBoardPage({
     super.key,
     required this.onStartPractice,
     required this.onLearningResources,
     required this.userId, 
+    this.refreshKey = 0,
   });
   
   @override
@@ -44,6 +46,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
   void initState() {
     super.initState();
     _fetchDashboardData();
+  }
+
+  @override
+  void didUpdateWidget(DashBoardPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.refreshKey != widget.refreshKey) {
+      _fetchDashboardData();
+    }
   }
 
   Color _getScoreColor(dynamic scoreValue) {
@@ -169,7 +179,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
     if (challengeData != null && challengeData is Map) {
       Navigator.push(context, MaterialPageRoute(
         builder: (_) => TimedChallengePage(challenge: challengeData, userId: widget.userId)
-      ));
+      )).then((_) => _fetchDashboardData());
       return;
     }
     
@@ -177,7 +187,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
     if (scriptData != null && scriptData is Map) {
       Navigator.push(context, MaterialPageRoute(
         builder: (_) => ScriptPracticePage(script: scriptData, userId: widget.userId)
-      ));
+      )).then((_) => _fetchDashboardData());
       return;
     }
     

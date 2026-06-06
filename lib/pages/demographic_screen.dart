@@ -277,7 +277,7 @@ class _DemographicScreenState extends State<DemographicScreen>
                             isExpanded: true,
                             decoration: _inputDecoration('Select your level'),
                             items: _gradeLevelOptions
-                                .map((g) => DropdownMenuItem(value: g, child: Text(g, style: const TextStyle(fontSize: 14))))
+                                .map((g) => DropdownMenuItem(value: g, child: Text(g, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis)))
                                 .toList(),
                             onChanged: (val) => setState(() => _selectedGradeLevel = val),
                             validator: (val) =>

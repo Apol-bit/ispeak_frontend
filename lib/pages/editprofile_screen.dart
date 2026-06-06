@@ -354,12 +354,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const Text('Gender', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
+                              isExpanded: true,
                               value: _selectedGender,
                               hint: const Text('Select Gender'),
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
@@ -368,9 +369,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
                                 ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Color(0xFF3F7CF4), width: 2),
+                                ),
                               ),
                               items: ['Male', 'Female', 'Prefer not to say']
-                                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                  .map((g) => DropdownMenuItem(value: g, child: Text(g, overflow: TextOverflow.ellipsis)))
                                   .toList(),
                               onChanged: (val) => setState(() => _selectedGender = val),
                             ),
@@ -381,12 +386,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const Text('Grade / Career Level', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
+                              isExpanded: true,
                               value: _selectedGradeLevel,
                               hint: const Text('Select Grade / Level'),
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
@@ -394,6 +400,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
                                   borderSide: BorderSide(color: Colors.grey[300]!),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(10),
+                                  borderSide: const BorderSide(color: Color(0xFF3F7CF4), width: 2),
                                 ),
                               ),
                               items: [
@@ -405,7 +415,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 'Working Professional',
                                 'Other'
                               ]
-                                  .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                                  .map((g) => DropdownMenuItem(value: g, child: Text(g, overflow: TextOverflow.ellipsis)))
                                   .toList(),
                               onChanged: (val) => setState(() => _selectedGradeLevel = val),
                             ),

@@ -78,6 +78,14 @@ class MainPage extends StatefulWidget {
 class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   Map<String, dynamic>? _currentSessionData;
+  int _refreshCount = 0;
+
+  void _switchTab(int index) {
+    setState(() {
+      _currentIndex = index;
+      _refreshCount++;
+    });
+  }
 
   @override
   void initState() {
@@ -138,29 +146,30 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     final List<Widget> pages = [
       DashBoardPage(
         userId: widget.userId,
-        onStartPractice: () => setState(() => _currentIndex = 1),
-        onLearningResources: () => setState(() => _currentIndex = 4),
+        refreshKey: _refreshCount,
+        onStartPractice: () => _switchTab(1),
+        onLearningResources: () => _switchTab(4),
       ),
       PracticePage(
         userId: widget.userId,
-        onFinish: (data) => setState(() {
+        onFinish: (data) {
           _currentSessionData = data;
-          _currentIndex = 3;
-        }),
+          _switchTab(3);
+        },
       ),
-      // --- FIX APPLIED HERE: Added onStartPractice ---
       ProgressPage(
         userId: widget.userId,
-        onStartPractice: () => setState(() => _currentIndex = 1), 
+        refreshKey: _refreshCount,
+        onStartPractice: () => _switchTab(1), 
       ),
       ResultPage(
         sessionData: _currentSessionData,
-        onBackToHome: () => setState(() => _currentIndex = 0),
-        onPracticeAgain: () => setState(() => _currentIndex = 1),
+        onBackToHome: () => _switchTab(0),
+        onPracticeAgain: () => _switchTab(1),
       ),
       LearningResourcesScreen(
         userId: widget.userId,
-        onBack: () => setState(() => _currentIndex = 0),
+        onBack: () => _switchTab(0),
       ),
     ];
 
@@ -179,7 +188,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
               padding: const EdgeInsets.only(bottom: 10),
               child: FloatingActionButton(
                 shape: const CircleBorder(),
-                onPressed: () => setState(() => _currentIndex = 1),
+                onPressed: () => _switchTab(1),
                 backgroundColor: const Color(0xFF3F7CF4),
                 elevation: 6,
                 child: const Icon(Icons.mic, size: 36, color: Colors.white),
@@ -215,7 +224,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   Widget _buildNavItem(IconData icon, String label, int index) {
     bool isSelected = _currentIndex == index;
     return InkWell(
-      onTap: () => setState(() => _currentIndex = index),
+      onTap: () => _switchTab(index),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
