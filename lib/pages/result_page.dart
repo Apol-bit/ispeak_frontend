@@ -47,9 +47,9 @@ class ResultPage extends StatelessWidget {
 
   String _getEnergyFeedback(int score) {
     if (score == 0) return 'No vocal energy detected. Please speak closer to the mic.'; 
-    if (score >= 80) return 'Great energy and vocal projection!';
-    if (score >= 60) return 'Good energy level. Keep it up.';
-    return 'Energy is a bit low. Try to speak with more enthusiasm.';
+    if (score >= 80) return 'Great vocal intensity and consistent volume!';
+    if (score >= 60) return 'Good volume level. Keep it up.';
+    return 'Volume is a bit low. Try to speak louder and maintain consistent intensity.';
   }
 
   // Format date and time from ISO string
@@ -196,7 +196,7 @@ class ResultPage extends StatelessWidget {
                   _buildMetricCard(
                     icon: Icons.bolt,
                     title: 'Energy',
-                    subtitle: 'Vocal projection and emotion',
+                    subtitle: 'Speech volume and vocal intensity',
                     score: energyScore,
                     feedback: _getEnergyFeedback(energyScore), // <-- UPDATED
                   ),
