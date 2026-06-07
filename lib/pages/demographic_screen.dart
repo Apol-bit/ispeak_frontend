@@ -249,7 +249,7 @@ class _DemographicScreenState extends State<DemographicScreen>
                             validator: (val) {
                               if (val == null || val.isEmpty) return 'Age is required';
                               final n = int.tryParse(val);
-                              if (n == null || n < 5 || n > 100) return 'Enter a valid age (5–100)';
+                              if (n == null || n < 12 || n > 100) return 'You must be at least 12 years old';
                               return null;
                             },
                           ),

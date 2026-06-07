@@ -340,8 +340,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               validator: (value) {
                                 if (value != null && value.isNotEmpty) {
                                   final ageVal = int.tryParse(value);
-                                  if (ageVal == null || ageVal <= 0 || ageVal > 120) {
-                                    return 'Please enter a valid age';
+                                  if (ageVal == null || ageVal < 12 || ageVal > 120) {
+                                    return 'You must be at least 12 years old';
                                   }
                                 }
                                 return null;
