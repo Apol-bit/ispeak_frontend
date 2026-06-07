@@ -35,9 +35,9 @@ class _DemographicScreenState extends State<DemographicScreen>
 
   final List<String> _genderOptions = ['Male', 'Female', 'Prefer not to say'];
   final List<String> _gradeLevelOptions = [
-    'Elementary (Grades 1–6)',
-    'Junior High School (Grades 7–10)',
-    'Senior High School (Grades 11–12)',
+    'Elementary',
+    'Junior High School',
+    'Senior High School',
     'College / University',
     'Graduate / Post-graduate',
     'Working Professional',

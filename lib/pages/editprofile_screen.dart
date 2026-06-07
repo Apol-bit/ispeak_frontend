@@ -59,9 +59,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     }
     
     final List<String> grades = [
-      'Elementary (Grades 1–6)',
-      'Junior High School (Grades 7–10)',
-      'Senior High School (Grades 11–12)',
+      'Elementary',
+      'Junior High School',
+      'Senior High School',
       'College / University',
       'Graduate / Post-graduate',
       'Working Professional',
@@ -407,9 +407,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                 ),
                               ),
                               items: [
-                                'Elementary (Grades 1–6)',
-                                'Junior High School (Grades 7–10)',
-                                'Senior High School (Grades 11–12)',
+                                'Elementary',
+                                'Junior High School',
+                                'Senior High School',
                                 'College / University',
                                 'Graduate / Post-graduate',
                                 'Working Professional',
