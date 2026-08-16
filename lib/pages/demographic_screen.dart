@@ -256,11 +256,13 @@ class _DemographicScreenState extends State<DemographicScreen>
                             keyboardType: TextInputType.number,
                             decoration: _inputDecoration('Enter your age'),
                             validator: (val) {
-                              if (val == null || val.isEmpty)
+                              if (val == null || val.isEmpty) {
                                 return 'Age is required';
+                              }
                               final n = int.tryParse(val);
-                              if (n == null || n < 12 || n > 100)
+                              if (n == null || n < 12 || n > 100) {
                                 return 'You must be at least 12 years old';
+                              }
                               return null;
                             },
                           ),

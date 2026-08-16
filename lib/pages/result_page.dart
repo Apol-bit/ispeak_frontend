@@ -31,8 +31,9 @@ class ResultPage extends StatelessWidget {
 
   // DYNAMIC FEEDBACK HELPERS
   String _getPaceFeedback(int score, int wpm) {
-    if (score == 0)
+    if (score == 0) {
       return 'Audio was too quiet or short to measure pace. Please try again.';
+    }
     if (wpm < 120) return 'Pacing is a bit slow. Try to speak a little faster.';
     if (wpm > 150) return 'Pacing is too fast. Try to slow down and breathe.';
     return 'Excellent pacing! Try to maintain this consistency.';
@@ -44,18 +45,21 @@ class ResultPage extends StatelessWidget {
     bool fillerAnalysisAvailable,
   ) {
     if (score == 0) return 'Could not detect any words to analyze for clarity.';
-    if (!fillerAnalysisAvailable)
+    if (!fillerAnalysisAvailable) {
       return 'Filler-word analysis was unavailable for this session.';
+    }
     if (fillers == 0) return 'Perfect! No filler words detected.';
     if (fillers <= 3) return 'Minimal filler words. Keep it up.';
-    if (fillers <= 8)
+    if (fillers <= 8) {
       return 'Moderate filler words. Try to pause instead of saying "um".';
+    }
     return 'High filler word usage. Practice speaking with fewer hesitations.';
   }
 
   String _getEnergyFeedback(int score) {
-    if (score == 0)
+    if (score == 0) {
       return 'No vocal energy detected. Please speak closer to the mic.';
+    }
     if (score >= 80) return 'Great vocal intensity and consistent volume!';
     if (score >= 60) return 'Good volume level. Keep it up.';
     return 'Volume is a bit low. Try to speak louder and maintain consistent intensity.';
