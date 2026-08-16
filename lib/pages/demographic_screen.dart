@@ -123,7 +123,9 @@ class _DemographicScreenState extends State<DemographicScreen>
         _showSuccessAndNavigate(initialLevel);
       } else {
         final data = jsonDecode(response.body);
-        _showSnack(data['message'] ?? 'Failed to save profile. Please try again.');
+        _showSnack(
+          data['message'] ?? 'Failed to save profile. Please try again.',
+        );
       }
     } catch (e) {
       if (mounted) _showSnack('Network error. Please check your connection.');
@@ -134,9 +136,9 @@ class _DemographicScreenState extends State<DemographicScreen>
   }
 
   void _showSnack(String msg, {Color color = Colors.redAccent}) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: color),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: color));
   }
 
   void _showSuccessAndNavigate(String level) {
@@ -190,8 +192,11 @@ class _DemographicScreenState extends State<DemographicScreen>
                           ),
                         ],
                       ),
-                      child: const Icon(Icons.person_pin_outlined,
-                          color: Colors.white, size: 36),
+                      child: const Icon(
+                        Icons.person_pin_outlined,
+                        color: Colors.white,
+                        size: 36,
+                      ),
                     ),
 
                     const SizedBox(height: 20),
@@ -212,7 +217,11 @@ class _DemographicScreenState extends State<DemographicScreen>
                     const Text(
                       'Help us personalize your learning journey\nby telling us a bit about yourself.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 14, color: Colors.grey, height: 1.5),
+                      style: TextStyle(
+                        fontSize: 14,
+                        color: Colors.grey,
+                        height: 1.5,
+                      ),
                     ),
 
                     const SizedBox(height: 32),
@@ -247,9 +256,11 @@ class _DemographicScreenState extends State<DemographicScreen>
                             keyboardType: TextInputType.number,
                             decoration: _inputDecoration('Enter your age'),
                             validator: (val) {
-                              if (val == null || val.isEmpty) return 'Age is required';
+                              if (val == null || val.isEmpty)
+                                return 'Age is required';
                               final n = int.tryParse(val);
-                              if (n == null || n < 12 || n > 100) return 'You must be at least 12 years old';
+                              if (n == null || n < 12 || n > 100)
+                                return 'You must be at least 12 years old';
                               return null;
                             },
                           ),
@@ -262,24 +273,36 @@ class _DemographicScreenState extends State<DemographicScreen>
                           _GenderSelector(
                             selected: _selectedGender,
                             options: _genderOptions,
-                            onSelect: (g) => setState(() => _selectedGender = g),
+                            onSelect: (g) =>
+                                setState(() => _selectedGender = g),
                           ),
 
                           const SizedBox(height: 22),
 
                           // Grade / School Level
                           _FieldLabel(
-                              label: 'Grade / School Level',
-                              icon: Icons.school_outlined),
+                            label: 'Grade / School Level',
+                            icon: Icons.school_outlined,
+                          ),
                           const SizedBox(height: 8),
                           DropdownButtonFormField<String>(
                             initialValue: _selectedGradeLevel,
                             isExpanded: true,
                             decoration: _inputDecoration('Select your level'),
                             items: _gradeLevelOptions
-                                .map((g) => DropdownMenuItem(value: g, child: Text(g, style: const TextStyle(fontSize: 14), overflow: TextOverflow.ellipsis)))
+                                .map(
+                                  (g) => DropdownMenuItem(
+                                    value: g,
+                                    child: Text(
+                                      g,
+                                      style: const TextStyle(fontSize: 14),
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                )
                                 .toList(),
-                            onChanged: (val) => setState(() => _selectedGradeLevel = val),
+                            onChanged: (val) =>
+                                setState(() => _selectedGradeLevel = val),
                             validator: (val) =>
                                 val == null ? 'Please select your level' : null,
                           ),
@@ -303,16 +326,18 @@ class _DemographicScreenState extends State<DemographicScreen>
                                       backgroundColor: AppTheme.accentColor,
                                       foregroundColor: Colors.white,
                                       shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(14)),
+                                        borderRadius: BorderRadius.circular(14),
+                                      ),
                                       elevation: 4,
-                                      shadowColor:
-                                          AppTheme.accentColor.withAlpha(80),
+                                      shadowColor: AppTheme.accentColor
+                                          .withAlpha(80),
                                     ),
                                     child: const Text(
                                       'Complete Setup',
                                       style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold),
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                           ),
@@ -414,25 +439,21 @@ class _GenderSelector extends StatelessWidget {
           onTap: () => onSelect(g),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 200),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 10),
             decoration: BoxDecoration(
               color: isSelected
                   ? AppTheme.accentColor
                   : const Color(0xFFF5F7FF),
               borderRadius: BorderRadius.circular(30),
               border: Border.all(
-                color: isSelected
-                    ? AppTheme.accentColor
-                    : Colors.grey.shade300,
+                color: isSelected ? AppTheme.accentColor : Colors.grey.shade300,
               ),
             ),
             child: Text(
               g,
               style: TextStyle(
                 fontSize: 13,
-                fontWeight:
-                    isSelected ? FontWeight.bold : FontWeight.normal,
+                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
                 color: isSelected ? Colors.white : Colors.grey[700],
               ),
             ),
@@ -515,76 +536,86 @@ class _LevelRevealDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return Dialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
-      child: Padding(
-        padding: const EdgeInsets.all(28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 80,
-              height: 80,
-              decoration: BoxDecoration(
-                color: _levelColor.withAlpha(25),
-                shape: BoxShape.circle,
+      child: SingleChildScrollView(
+        child: Padding(
+          padding: const EdgeInsets.all(28),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: _levelColor.withAlpha(25),
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(_levelIcon, color: _levelColor, size: 40),
               ),
-              child: Icon(_levelIcon, color: _levelColor, size: 40),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Your Initial Level',
-              style: TextStyle(
+              const SizedBox(height: 20),
+              const Text(
+                'Your Initial Level',
+                style: TextStyle(
                   fontSize: 13,
                   color: Colors.grey,
-                  fontWeight: FontWeight.w500),
-            ),
-            const SizedBox(height: 6),
-            Text(
-              level,
-              style: TextStyle(
-                fontSize: 30,
-                fontWeight: FontWeight.bold,
-                color: _levelColor,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              _levelDescription,
-              textAlign: TextAlign.center,
-              style: const TextStyle(
-                  fontSize: 13.5, color: Colors.black54, height: 1.5),
-            ),
-            const SizedBox(height: 10),
-            Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF5F7FF),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Text(
-                '✦ Complete 10 practices to lock in your official level',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 12, color: AppTheme.accentColor),
-              ),
-            ),
-            const SizedBox(height: 24),
-            SizedBox(
-              width: double.infinity,
-              height: 50,
-              child: ElevatedButton(
-                onPressed: onContinue,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: _levelColor,
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14)),
+                  fontWeight: FontWeight.w500,
                 ),
-                child: const Text('Continue to Login',
-                    style: TextStyle(
-                        fontSize: 15, fontWeight: FontWeight.bold)),
               ),
-            ),
-          ],
+              const SizedBox(height: 6),
+              Text(
+                level,
+                style: TextStyle(
+                  fontSize: 30,
+                  fontWeight: FontWeight.bold,
+                  color: _levelColor,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Text(
+                _levelDescription,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 13.5,
+                  color: Colors.black54,
+                  height: 1.5,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 14,
+                  vertical: 8,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF5F7FF),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Text(
+                  '✦ Complete 10 practices to lock in your official level',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 12, color: AppTheme.accentColor),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: onContinue,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: _levelColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                  ),
+                  child: const Text(
+                    'Continue to Login',
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

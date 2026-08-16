@@ -18,13 +18,13 @@ void main() async {
 
   // --- EDGE-TO-EDGE UI CONFIGURATION ---
   SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
-  
+
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent, 
-      statusBarIconBrightness: Brightness.light, 
-      systemNavigationBarColor: Colors.transparent, 
-      systemNavigationBarIconBrightness: Brightness.dark, 
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.light,
+      systemNavigationBarColor: Colors.transparent,
+      systemNavigationBarIconBrightness: Brightness.dark,
     ),
   );
 
@@ -132,7 +132,9 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     );
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-        content: Text('Your account has been suspended. Please contact the administrator.'),
+        content: Text(
+          'Your account has been suspended. Please contact the administrator.',
+        ),
         backgroundColor: Colors.redAccent,
         duration: Duration(seconds: 4),
       ),
@@ -160,7 +162,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       ProgressPage(
         userId: widget.userId,
         refreshKey: _refreshCount,
-        onStartPractice: () => _switchTab(1), 
+        onStartPractice: () => _switchTab(1),
       ),
       ResultPage(
         sessionData: _currentSessionData,
@@ -174,13 +176,10 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     ];
 
     return Scaffold(
-      extendBody: true, 
-      resizeToAvoidBottomInset: false,
+      extendBody: true,
+      resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF5F5F5),
-      body: IndexedStack(
-        index: _currentIndex,
-        children: pages,
-      ),
+      body: IndexedStack(index: _currentIndex, children: pages),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: hideBars
           ? null
@@ -198,7 +197,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
           ? null
           : BottomAppBar(
               // UNIVERSAL FIX 1: Override Material 3's sneaky default padding
-              padding: EdgeInsets.zero, 
+              padding: EdgeInsets.zero,
               shape: const CircularNotchedRectangle(),
               notchMargin: 8,
               clipBehavior: Clip.antiAlias,
@@ -211,8 +210,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
                     // UNIVERSAL FIX 2: Expanded widgets automatically calculate perfect spacing on any screen
                     children: [
                       Expanded(child: _buildNavItem(Icons.home, 'Home', 0)),
-                      const Expanded(child: SizedBox()), // Empty flexible space for the Mic button notch
-                      Expanded(child: _buildNavItem(Icons.show_chart, 'Progress', 2)),
+                      const Expanded(
+                        child: SizedBox(),
+                      ), // Empty flexible space for the Mic button notch
+                      Expanded(
+                        child: _buildNavItem(Icons.show_chart, 'Progress', 2),
+                      ),
                     ],
                   ),
                 ),
@@ -228,7 +231,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, size: 26, color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey),
+          Icon(
+            icon,
+            size: 26,
+            color: isSelected ? const Color(0xFF3F7CF4) : Colors.grey,
+          ),
           const SizedBox(height: 4),
           // UNIVERSAL FIX 3: Flexible guarantees text will NEVER overflow vertically or horizontally
           Flexible(

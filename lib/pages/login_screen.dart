@@ -49,20 +49,18 @@ class _LoginScreenState extends State<LoginScreen> {
         // Successful Login (Status is Active)
         if (result['token'] != null) {
           final String userId = result['user']['id'];
-          
+
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('Login successful!')),
-            ); 
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('Login successful!')));
             Navigator.pushAndRemoveUntil(
               context,
-              MaterialPageRoute(
-                builder: (context) => MainPage(userId: userId),
-              ),
+              MaterialPageRoute(builder: (context) => MainPage(userId: userId)),
               (route) => false,
             );
           }
-        } 
+        }
         // Error or Banned Status (403 or 400)
         else {
           if (mounted) {
@@ -79,7 +77,11 @@ class _LoginScreenState extends State<LoginScreen> {
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Could not connect to server. Check your IP/Wi-Fi.')),
+            const SnackBar(
+              content: Text(
+                'Could not connect to server. Check your IP/Wi-Fi.',
+              ),
+            ),
           );
         }
       }
@@ -87,10 +89,7 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   void _goToSignUp() {
-    Navigator.push(
-      context,
-      RightToLeftPageRoute(page: const SignupScreen()),
-    );
+    Navigator.push(context, RightToLeftPageRoute(page: const SignupScreen()));
   }
 
   @override
@@ -138,10 +137,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   'Master Your Public Speaking',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: r.sp(14),
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: r.sp(14), color: Colors.grey),
                 ),
 
                 SizedBox(height: r.h(50)),
@@ -232,7 +228,9 @@ class _LoginScreenState extends State<LoginScreen> {
                             onTap: () {
                               ScaffoldMessenger.of(context).showSnackBar(
                                 const SnackBar(
-                                  content: Text('Password reset feature coming soon'),
+                                  content: Text(
+                                    'Password reset feature coming soon',
+                                  ),
                                 ),
                               );
                             },
@@ -266,8 +264,11 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         SizedBox(height: r.h(16)),
 
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: r.w(4),
+                          runSpacing: r.h(4),
                           children: [
                             Text(
                               "Don't have an account?",
@@ -276,7 +277,6 @@ class _LoginScreenState extends State<LoginScreen> {
                                 color: Colors.grey,
                               ),
                             ),
-                            SizedBox(width: r.w(4)),
                             GestureDetector(
                               onTap: _goToSignUp,
                               child: Text(
@@ -300,10 +300,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   '© 2026 iSpeak. English & Filipino Supported',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: r.sp(11),
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: r.sp(11), color: Colors.grey[600]),
                 ),
 
                 SizedBox(height: r.h(20)),

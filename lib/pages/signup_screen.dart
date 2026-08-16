@@ -90,17 +90,16 @@ class _SignupScreenState extends State<SignupScreen> {
           // Navigate to Demographic screen for onboarding
           Navigator.of(context).pushReplacement(
             ModernPageRoute(
-              page: DemographicScreen(
-                userId: newUserId,
-                username: username,
-              ),
+              page: DemographicScreen(userId: newUserId, username: username),
             ),
           );
         } else {
           if (!mounted) return;
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(data['message'] ?? 'Sign up failed. Please try again.'),
+              content: Text(
+                data['message'] ?? 'Sign up failed. Please try again.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -109,7 +108,9 @@ class _SignupScreenState extends State<SignupScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Network error. Check your connection to the server.'),
+            content: Text(
+              'Network error. Check your connection to the server.',
+            ),
             backgroundColor: Colors.red,
           ),
         );
@@ -121,7 +122,7 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _goToLogin() {
-    Navigator.pop(context); 
+    Navigator.pop(context);
   }
 
   @override
@@ -140,17 +141,17 @@ class _SignupScreenState extends State<SignupScreen> {
                 SizedBox(height: r.h(40)),
 
                 Hero(
-                  tag: 'logo', 
+                  tag: 'logo',
                   child: Image.asset(
                     'assets/images/ispeak_logo.png',
                     height: r.h(80),
-                    ),
                   ),
+                ),
 
                 SizedBox(height: r.h(5)),
 
                 Hero(
-                  tag: 'brand_text', 
+                  tag: 'brand_text',
                   child: Material(
                     type: MaterialType.transparency,
                     child: Text(
@@ -170,10 +171,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 Text(
                   'Master Your Public Speaking',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: r.sp(14),
-                    color: Colors.grey,
-                  ),
+                  style: TextStyle(fontSize: r.sp(14), color: Colors.grey),
                 ),
 
                 SizedBox(height: r.h(50)),
@@ -207,104 +205,155 @@ class _SignupScreenState extends State<SignupScreen> {
 
                         SizedBox(height: r.h(24)),
 
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                        LayoutBuilder(
+                          builder: (context, constraints) {
+                            final firstName = _buildNameField(
+                              r: r,
+                              label: 'First Name',
+                              controller: _firstNameController,
+                            );
+                            final lastName = _buildNameField(
+                              r: r,
+                              label: 'Last Name',
+                              controller: _lastNameController,
+                            );
+
+                            if (constraints.maxWidth < 280) {
+                              return Column(
                                 children: [
-                                  Text('First Name', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
-                                  SizedBox(height: r.h(8)),
-                                  CustomTextField(
-                                    controller: _firstNameController,
-                                    hintText: 'First Name',
-                                    validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                                  ),
+                                  firstName,
+                                  SizedBox(height: r.h(20)),
+                                  lastName,
                                 ],
-                              ),
-                            ),
-                            SizedBox(width: r.w(12)),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text('Last Name', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
-                                  SizedBox(height: r.h(8)),
-                                  CustomTextField(
-                                    controller: _lastNameController,
-                                    hintText: 'Last Name',
-                                    validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ],
+                              );
+                            }
+
+                            return Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Expanded(child: firstName),
+                                SizedBox(width: r.w(12)),
+                                Expanded(child: lastName),
+                              ],
+                            );
+                          },
                         ),
 
                         SizedBox(height: r.h(20)),
 
-                        Text('Username', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        Text(
+                          'Username',
+                          style: TextStyle(
+                            fontSize: r.sp(13),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
                         SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _usernameController,
                           hintText: 'Choose a username',
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Please enter a username';
-                            if (value.length < 3) return 'Must be at least 3 characters';
+                            if (value == null || value.isEmpty)
+                              return 'Please enter a username';
+                            if (value.length < 3)
+                              return 'Must be at least 3 characters';
                             return null;
                           },
                         ),
 
                         SizedBox(height: r.h(20)),
 
-                        Text('Email Address', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        Text(
+                          'Email Address',
+                          style: TextStyle(
+                            fontSize: r.sp(13),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
                         SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _emailController,
                           hintText: 'Enter your email',
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Please enter your email';
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) return 'Please enter a valid email';
+                            if (value == null || value.isEmpty)
+                              return 'Please enter your email';
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+                              return 'Please enter a valid email';
                             return null;
                           },
                         ),
 
                         SizedBox(height: r.h(20)),
 
-                        Text('Password', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        Text(
+                          'Password',
+                          style: TextStyle(
+                            fontSize: r.sp(13),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
                         SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _passwordController,
                           hintText: 'Enter your password',
                           obscureText: !_isPasswordVisible,
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Please enter a password';
-                            if (value.length < 6) return 'Must be at least 6 characters';
+                            if (value == null || value.isEmpty)
+                              return 'Please enter a password';
+                            if (value.length < 6)
+                              return 'Must be at least 6 characters';
                             return null;
                           },
                           suffixIcon: GestureDetector(
-                            onTap: () => setState(() => _isPasswordVisible = !_isPasswordVisible),
-                            child: Icon(_isPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey[600]),
+                            onTap: () => setState(
+                              () => _isPasswordVisible = !_isPasswordVisible,
+                            ),
+                            child: Icon(
+                              _isPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
 
                         SizedBox(height: r.h(20)),
 
-                        Text('Confirm Password', style: TextStyle(fontSize: r.sp(13), fontWeight: FontWeight.w600, color: Colors.black87)),
+                        Text(
+                          'Confirm Password',
+                          style: TextStyle(
+                            fontSize: r.sp(13),
+                            fontWeight: FontWeight.w600,
+                            color: Colors.black87,
+                          ),
+                        ),
                         SizedBox(height: r.h(8)),
                         CustomTextField(
                           controller: _confirmPasswordController,
                           hintText: 'Confirm your password',
                           obscureText: !_isConfirmPasswordVisible,
                           validator: (value) {
-                            if (value == null || value.isEmpty) return 'Please confirm your password';
-                            if (value != _passwordController.text) return 'Passwords do not match';
+                            if (value == null || value.isEmpty)
+                              return 'Please confirm your password';
+                            if (value != _passwordController.text)
+                              return 'Passwords do not match';
                             return null;
                           },
                           suffixIcon: GestureDetector(
-                            onTap: () => setState(() => _isConfirmPasswordVisible = !_isConfirmPasswordVisible),
-                            child: Icon(_isConfirmPasswordVisible ? Icons.visibility : Icons.visibility_off, color: Colors.grey[600]),
+                            onTap: () => setState(
+                              () => _isConfirmPasswordVisible =
+                                  !_isConfirmPasswordVisible,
+                            ),
+                            child: Icon(
+                              _isConfirmPasswordVisible
+                                  ? Icons.visibility
+                                  : Icons.visibility_off,
+                              color: Colors.grey[600],
+                            ),
                           ),
                         ),
 
@@ -317,20 +366,39 @@ class _SignupScreenState extends State<SignupScreen> {
                               height: r.w(20),
                               child: Checkbox(
                                 value: _agreeToTerms,
-                                onChanged: (value) => setState(() => _agreeToTerms = value ?? false),
+                                onChanged: (value) => setState(
+                                  () => _agreeToTerms = value ?? false,
+                                ),
                                 activeColor: AppTheme.primaryColor,
-                                shape: RoundedRectangleBorder(borderRadius: r.radius(4)),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: r.radius(4),
+                                ),
                               ),
                             ),
                             SizedBox(width: r.w(12)),
                             Expanded(
                               child: GestureDetector(
-                                onTap: () => setState(() => _agreeToTerms = !_agreeToTerms),
+                                onTap: () => setState(
+                                  () => _agreeToTerms = !_agreeToTerms,
+                                ),
                                 child: RichText(
                                   text: TextSpan(
                                     children: [
-                                      TextSpan(text: 'I agree to the ', style: TextStyle(fontSize: r.sp(12), color: Colors.grey[600])),
-                                      TextSpan(text: 'Terms & Conditions', style: TextStyle(fontSize: r.sp(12), color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                                      TextSpan(
+                                        text: 'I agree to the ',
+                                        style: TextStyle(
+                                          fontSize: r.sp(12),
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                      TextSpan(
+                                        text: 'Terms & Conditions',
+                                        style: TextStyle(
+                                          fontSize: r.sp(12),
+                                          color: AppTheme.primaryColor,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
                                     ],
                                   ),
                                 ),
@@ -358,14 +426,29 @@ class _SignupScreenState extends State<SignupScreen> {
 
                         SizedBox(height: r.h(16)),
 
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
+                        Wrap(
+                          alignment: WrapAlignment.center,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: r.w(4),
+                          runSpacing: r.h(4),
                           children: [
-                            Text('Already have an account?', style: TextStyle(fontSize: r.sp(13), color: Colors.grey)),
-                            SizedBox(width: r.w(4)),
+                            Text(
+                              'Already have an account?',
+                              style: TextStyle(
+                                fontSize: r.sp(13),
+                                color: Colors.grey,
+                              ),
+                            ),
                             GestureDetector(
                               onTap: _goToLogin,
-                              child: Text('Log In', style: TextStyle(fontSize: r.sp(13), color: AppTheme.primaryColor, fontWeight: FontWeight.w600)),
+                              child: Text(
+                                'Log In',
+                                style: TextStyle(
+                                  fontSize: r.sp(13),
+                                  color: AppTheme.primaryColor,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -379,10 +462,7 @@ class _SignupScreenState extends State<SignupScreen> {
                 Text(
                   '© 2026 iSpeak. English & Filipino Supported',
                   textAlign: TextAlign.center,
-                  style: TextStyle(
-                    fontSize: r.sp(11),
-                    color: Colors.grey[600],
-                  ),
+                  style: TextStyle(fontSize: r.sp(11), color: Colors.grey[600]),
                 ),
 
                 SizedBox(height: r.h(20)),
@@ -391,6 +471,33 @@ class _SignupScreenState extends State<SignupScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Widget _buildNameField({
+    required Responsive r,
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            fontSize: r.sp(13),
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        SizedBox(height: r.h(8)),
+        CustomTextField(
+          controller: controller,
+          hintText: label,
+          validator: (value) =>
+              value == null || value.isEmpty ? 'Required' : null,
+        ),
+      ],
     );
   }
 }

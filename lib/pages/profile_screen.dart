@@ -2,14 +2,14 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart'; 
-import '../theme/app_theme.dart';        
+import '../config/api_config.dart';
+import '../theme/app_theme.dart';
 import 'editprofile_screen.dart';
 import 'login_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class ProfileScreen extends StatefulWidget {
-  final String userId; 
+  final String userId;
   const ProfileScreen({super.key, required this.userId});
 
   @override
@@ -22,9 +22,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String username = "Loading...";
   String userEmail = "Loading...";
   String userInitials = "";
-  
+
   int sessions = 0;
-  int avgScore = 0; 
+  int avgScore = 0;
   int dayStreak = 0;
 
   int? userAge;
@@ -40,32 +40,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Color _getScoreColor(int score) {
-    if (score == 0) return Colors.grey; 
-    if (score >= 85) return const Color(0xFF4CAF50); 
-    if (score >= 70) return const Color(0xFFFFC107); 
-    if (score >= 50) return const Color(0xFFFF9800); 
-    return const Color(0xFFEF4444); 
+    if (score == 0) return Colors.grey;
+    if (score >= 85) return const Color(0xFF4CAF50);
+    if (score >= 70) return const Color(0xFFFFC107);
+    if (score >= 50) return const Color(0xFFFF9800);
+    return const Color(0xFFEF4444);
   }
 
   Future<void> _loadUserData() async {
     try {
-      debugPrint('Profile: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}');
-      final userRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}')).timeout(const Duration(seconds: 10));
-      final statsRes = await http.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}')).timeout(const Duration(seconds: 10));
-      debugPrint('Profile: userRes=${userRes.statusCode}, statsRes=${statsRes.statusCode}');
+      debugPrint(
+        'Profile: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
+      );
+      final userRes = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'))
+          .timeout(const Duration(seconds: 10));
+      final statsRes = await http
+          .get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'))
+          .timeout(const Duration(seconds: 10));
+      debugPrint(
+        'Profile: userRes=${userRes.statusCode}, statsRes=${statsRes.statusCode}',
+      );
 
       if (userRes.statusCode == 200) {
         final userData = jsonDecode(userRes.body);
-        
+
         firstName = userData['firstName'] ?? "";
         lastName = userData['lastName'] ?? "";
         username = userData['username'] ?? "Unknown User";
         userEmail = userData['email'] ?? "No email provided";
-        
+
         userAge = userData['age'];
         userGender = userData['gender'] ?? "";
         userGradeLevel = userData['gradeLevel'] ?? "";
-        
+
         if (firstName.isNotEmpty && lastName.isNotEmpty) {
           userInitials = '${firstName[0]}${lastName[0]}'.toUpperCase();
         } else if (username != "Unknown User") {
@@ -83,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final statsData = jsonDecode(statsRes.body);
         final overallStats = statsData['overallStats'] ?? {};
         final sessionsList = statsData['sessions'] as List<dynamic>? ?? [];
-        
+
         // FIX: Properly extract totalSessions from overallStats
         sessions = overallStats['totalSessions'] ?? 0;
         avgScore = (overallStats['avgScore'] ?? 0).toInt();
@@ -93,11 +101,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         for (var s in sessionsList) {
           if (s['createdAt'] != null) {
             DateTime d = DateTime.parse(s['createdAt']).toLocal();
-            uniqueDays.add(DateTime(d.year, d.month, d.day)); 
+            uniqueDays.add(DateTime(d.year, d.month, d.day));
           }
         }
 
-        List<DateTime> sortedDays = uniqueDays.toList()..sort((a, b) => b.compareTo(a));
+        List<DateTime> sortedDays = uniqueDays.toList()
+          ..sort((a, b) => b.compareTo(a));
         DateTime today = DateTime.now();
         today = DateTime(today.year, today.month, today.day);
 
@@ -105,7 +114,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
         if (sortedDays.isNotEmpty) {
           DateTime lastActive = sortedDays.first;
-          
+
           if (today.difference(lastActive).inDays <= 1) {
             dayStreak = 1;
             DateTime expectedDay = lastActive.subtract(const Duration(days: 1));
@@ -115,7 +124,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 dayStreak++;
                 expectedDay = expectedDay.subtract(const Duration(days: 1));
               } else {
-                break; 
+                break;
               }
             }
           }
@@ -125,7 +134,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       setState(() {
         _isLoading = false;
       });
-
     } catch (e) {
       debugPrint("Profile ERROR: $e");
       debugPrint("Profile ERROR type: ${e.runtimeType}");
@@ -156,7 +164,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     ).then((value) {
       if (value != null) {
         setState(() => _isLoading = true);
-        _loadUserData(); 
+        _loadUserData();
       }
     });
   }
@@ -204,11 +212,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Stack(
           children: [
             Container(
-              height: MediaQuery.of(context).size.height * 0.35, 
+              height: MediaQuery.of(context).size.height * 0.35,
               width: double.infinity,
-              color: AppTheme.accentColor, 
+              color: AppTheme.accentColor,
             ),
-            
+
             SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(24),
@@ -220,7 +228,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: const [
-                          Icon(Icons.chevron_left, color: Colors.white, size: 26),
+                          Icon(
+                            Icons.chevron_left,
+                            color: Colors.white,
+                            size: 26,
+                          ),
                           SizedBox(width: 4),
                           Text(
                             'Back',
@@ -233,7 +245,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
-                    
+
                     const SizedBox(height: 20),
 
                     const Text(
@@ -242,16 +254,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         fontSize: 28,
                         fontFamily: 'Inter',
                         fontWeight: FontWeight.bold,
-                        color: Colors.white, 
+                        color: Colors.white,
                       ),
                     ),
                     const SizedBox(height: 8),
                     const Text(
                       'Account settings',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.white70, 
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.white70),
                     ),
 
                     const SizedBox(height: 32),
@@ -279,16 +288,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               borderRadius: BorderRadius.circular(40),
                             ),
                             child: Center(
-                              child: _isLoading 
-                                ? const CircularProgressIndicator(color: Colors.white)
-                                : Text(
-                                    userInitials,
-                                    style: const TextStyle(
-                                      fontSize: 32,
-                                      fontWeight: FontWeight.bold,
+                              child: _isLoading
+                                  ? const CircularProgressIndicator(
                                       color: Colors.white,
+                                    )
+                                  : Text(
+                                      userInitials,
+                                      style: const TextStyle(
+                                        fontSize: 32,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.white,
+                                      ),
                                     ),
-                                  ),
                             ),
                           ),
 
@@ -296,6 +307,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           Text(
                             username,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -307,6 +321,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           Text(
                             _isLoading ? '-' : '$firstName $lastName',
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 13,
                               color: Colors.grey[700],
@@ -317,6 +334,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                           Text(
                             userEmail,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.center,
                             style: TextStyle(
                               fontSize: 12,
                               color: Colors.grey[500],
@@ -341,7 +361,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Sessions',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -352,13 +375,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     style: TextStyle(
                                       fontSize: 18,
                                       fontWeight: FontWeight.bold,
-                                      color: _getScoreColor(avgScore), 
+                                      color: _getScoreColor(avgScore),
                                     ),
                                   ),
                                   const SizedBox(height: 4),
                                   Text(
                                     'Avg Score',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ],
                               ),
@@ -375,13 +401,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   const SizedBox(height: 4),
                                   Text(
                                     'Day Streak',
-                                    style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
                                   ),
                                 ],
                               ),
                             ],
                           ),
-                          if (!_isLoading && (userAge != null || userGender.isNotEmpty || userGradeLevel.isNotEmpty)) ...[
+                          if (!_isLoading &&
+                              (userAge != null ||
+                                  userGender.isNotEmpty ||
+                                  userGradeLevel.isNotEmpty)) ...[
                             const SizedBox(height: 16),
                             Divider(color: Colors.grey[200], thickness: 1),
                             const SizedBox(height: 12),
@@ -389,11 +421,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 if (userAge != null)
-                                  Expanded(child: _buildDemographicItem('Age', '$userAge', Icons.calendar_today_outlined)),
+                                  Expanded(
+                                    child: _buildDemographicItem(
+                                      'Age',
+                                      '$userAge',
+                                      Icons.calendar_today_outlined,
+                                    ),
+                                  ),
                                 if (userGender.isNotEmpty)
-                                  Expanded(child: _buildDemographicItem('Gender', userGender, Icons.face_outlined)),
+                                  Expanded(
+                                    child: _buildDemographicItem(
+                                      'Gender',
+                                      userGender,
+                                      Icons.face_outlined,
+                                    ),
+                                  ),
                                 if (userGradeLevel.isNotEmpty)
-                                  Expanded(child: _buildDemographicItem('Grade', userGradeLevel, Icons.school_outlined)),
+                                  Expanded(
+                                    child: _buildDemographicItem(
+                                      'Grade',
+                                      userGradeLevel,
+                                      Icons.school_outlined,
+                                    ),
+                                  ),
                               ],
                             ),
                           ],
@@ -415,7 +465,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.info_outline, color: AppTheme.accentColor, size: 20),
+                              const Icon(
+                                Icons.info_outline,
+                                color: AppTheme.accentColor,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               const Text(
                                 'Score Guide',
@@ -429,13 +483,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          _buildScoreGuideItem('95', 'Excellent', '85-100 points', Colors.green, '🎉'),
+                          _buildScoreGuideItem(
+                            '95',
+                            'Excellent',
+                            '85-100 points',
+                            Colors.green,
+                            '🎉',
+                          ),
                           const SizedBox(height: 12),
-                          _buildScoreGuideItem('76', 'Good', '70-84 points', Colors.amber, '👍'),
+                          _buildScoreGuideItem(
+                            '76',
+                            'Good',
+                            '70-84 points',
+                            Colors.amber,
+                            '👍',
+                          ),
                           const SizedBox(height: 12),
-                          _buildScoreGuideItem('58', 'Fair', '50-69 points', Colors.orange, '💪'),
+                          _buildScoreGuideItem(
+                            '58',
+                            'Fair',
+                            '50-69 points',
+                            Colors.orange,
+                            '💪',
+                          ),
                           const SizedBox(height: 12),
-                          _buildScoreGuideItem('42', 'Needs Work', '0-49 points', Colors.red, '📈'),
+                          _buildScoreGuideItem(
+                            '42',
+                            'Needs Work',
+                            '0-49 points',
+                            Colors.red,
+                            '📈',
+                          ),
                           const SizedBox(height: 12),
                         ],
                       ),
@@ -455,7 +533,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         children: [
                           Row(
                             children: [
-                              const Icon(Icons.stars_outlined, color: AppTheme.accentColor, size: 20),
+                              const Icon(
+                                Icons.stars_outlined,
+                                color: AppTheme.accentColor,
+                                size: 20,
+                              ),
                               const SizedBox(width: 8),
                               const Text(
                                 'Level Guide',
@@ -469,11 +551,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                           const SizedBox(height: 20),
 
-                          _buildLevelGuideItem('Advanced', '80 - 100 average score', const Color(0xFFB45FD4), Icons.emoji_events_outlined),
+                          _buildLevelGuideItem(
+                            'Advanced',
+                            '80 - 100 average score',
+                            const Color(0xFFB45FD4),
+                            Icons.emoji_events_outlined,
+                          ),
                           const SizedBox(height: 12),
-                          _buildLevelGuideItem('Intermediate', '60 - 79 average score', const Color(0xFF3F7CF4), Icons.trending_up),
+                          _buildLevelGuideItem(
+                            'Intermediate',
+                            '60 - 79 average score',
+                            const Color(0xFF3F7CF4),
+                            Icons.trending_up,
+                          ),
                           const SizedBox(height: 12),
-                          _buildLevelGuideItem('Beginner', '0 - 59 average score', const Color(0xFF3FBD7A), Icons.spa_outlined),
+                          _buildLevelGuideItem(
+                            'Beginner',
+                            '0 - 59 average score',
+                            const Color(0xFF3FBD7A),
+                            Icons.spa_outlined,
+                          ),
                           const SizedBox(height: 12),
                         ],
                       ),
@@ -503,10 +600,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Center(
                       child: Text(
                         'iSpeak v1.0.0',
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                       ),
                     ),
 
@@ -521,11 +615,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildScoreGuideItem(String score, String label, String range, Color color, String emoji) {
+  Widget _buildScoreGuideItem(
+    String score,
+    String label,
+    String range,
+    Color color,
+    String emoji,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-        decoration: BoxDecoration(
-        color: color.withAlpha((0.12 * 255).round()), 
+      decoration: BoxDecoration(
+        color: color.withAlpha((0.12 * 255).round()),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -542,7 +642,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ),
           ),
           const SizedBox(width: 8),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -558,27 +658,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 2),
                 Text(
                   range,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
             ),
           ),
-          
+
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: color, 
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
             child: Center(
-              child: Text(
-                emoji,
-                style: const TextStyle(fontSize: 18), 
-              ),
+              child: Text(emoji, style: const TextStyle(fontSize: 18)),
             ),
           ),
         ],
@@ -586,11 +677,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildLevelGuideItem(String level, String range, Color color, IconData icon) {
+  Widget _buildLevelGuideItem(
+    String level,
+    String range,
+    Color color,
+    IconData icon,
+  ) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color: color.withAlpha((0.12 * 255).round()), 
+        color: color.withAlpha((0.12 * 255).round()),
         borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
@@ -598,20 +694,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           Container(
             width: 40,
             height: 40,
-            decoration: BoxDecoration(
-              color: color, 
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: Icon(
-                icon,
-                color: Colors.white,
-                size: 20,
-              ),
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+            child: Center(child: Icon(icon, color: Colors.white, size: 20)),
           ),
           const SizedBox(width: 14),
-          
+
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -627,10 +714,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 const SizedBox(height: 2),
                 Text(
                   range,
-                  style: TextStyle(
-                    fontSize: 13,
-                    color: Colors.grey[700],
-                  ),
+                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
             ),
@@ -647,6 +731,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         const SizedBox(height: 6),
         Text(
           value,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          textAlign: TextAlign.center,
           style: const TextStyle(
             fontSize: 14,
             fontWeight: FontWeight.bold,
@@ -678,7 +765,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: isLogout ? Colors.red.withAlpha((0.1 * 255).round()) : Colors.white,
+          color: isLogout
+              ? Colors.red.withAlpha((0.1 * 255).round())
+              : Colors.white,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Row(
@@ -705,19 +794,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     const SizedBox(height: 4),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 12,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
                     ),
-                  ]
+                  ],
                 ],
               ),
             ),
-            Icon(
-              Icons.chevron_right,
-              color: Colors.grey[400],
-            ),
+            Icon(Icons.chevron_right, color: Colors.grey[400]),
           ],
         ),
       ),

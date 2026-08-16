@@ -1,13 +1,13 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import '../config/api_config.dart'; 
+import '../config/api_config.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 
 class EditProfileScreen extends StatefulWidget {
-  final String userId; 
+  final String userId;
   final String firstName;
   final String lastName;
   final String username;
@@ -41,8 +41,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   String? _selectedGender;
   String? _selectedGradeLevel;
   final _formKey = GlobalKey<FormState>();
-  
-  bool _isLoading = false; 
+
+  bool _isLoading = false;
 
   @override
   void initState() {
@@ -51,13 +51,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     _lastNameController = TextEditingController(text: widget.lastName);
     _usernameController = TextEditingController(text: widget.username);
     _emailController = TextEditingController(text: widget.userEmail);
-    _ageController = TextEditingController(text: widget.age != null ? widget.age.toString() : '');
-    
+    _ageController = TextEditingController(
+      text: widget.age != null ? widget.age.toString() : '',
+    );
+
     final List<String> genders = ['Male', 'Female', 'Prefer not to say'];
     if (widget.gender != null && genders.contains(widget.gender)) {
       _selectedGender = widget.gender;
     }
-    
+
     final List<String> grades = [
       'Elementary',
       'Junior High School',
@@ -95,7 +97,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
             'firstName': _firstNameController.text.trim(),
             'lastName': _lastNameController.text.trim(),
             'username': _usernameController.text.trim(),
-            'age': _ageController.text.trim().isNotEmpty ? int.tryParse(_ageController.text.trim()) : null,
+            'age': _ageController.text.trim().isNotEmpty
+                ? int.tryParse(_ageController.text.trim())
+                : null,
             'gender': _selectedGender,
             'gradeLevel': _selectedGradeLevel,
             // EMAIL OMITTED ON PURPOSE FOR SECURITY
@@ -106,7 +110,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
         if (response.statusCode == 200) {
           if (!mounted) return;
-          
+
           Navigator.pop(context, true);
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -136,14 +140,14 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey[100], 
+      backgroundColor: Colors.grey[100],
       body: Column(
         children: [
-            Container(
+          Container(
             width: double.infinity,
-            color: AppTheme.accentColor, 
+            color: AppTheme.accentColor,
             padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 20, 
+              top: MediaQuery.of(context).padding.top + 20,
               left: 24,
               right: 24,
               bottom: 32,
@@ -200,7 +204,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           border: Border.all(color: Colors.grey.shade200),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlpha((0.02 * 255).round()),
+                              color: Colors.black.withAlpha(
+                                (0.02 * 255).round(),
+                              ),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -222,8 +228,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               controller: _usernameController,
                               hintText: 'Choose a username',
                               validator: (value) {
-                                if (value == null || value.isEmpty) return 'Please enter a username';
-                                if (value.length < 3) return 'Username must be at least 3 characters';
+                                if (value == null || value.isEmpty)
+                                  return 'Please enter a username';
+                                if (value.length < 3)
+                                  return 'Username must be at least 3 characters';
                                 return null;
                               },
                             ),
@@ -233,7 +241,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
                       const SizedBox(height: 20),
 
-                                            // --- REAL NAME CONTAINER (Restricted) ---
+                      // --- REAL NAME CONTAINER (Restricted) ---
                       Container(
                         padding: const EdgeInsets.all(20),
                         decoration: BoxDecoration(
@@ -242,7 +250,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           border: Border.all(color: Colors.grey.shade200),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlpha((0.02 * 255).round()),
+                              color: Colors.black.withAlpha(
+                                (0.02 * 255).round(),
+                              ),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -251,48 +261,54 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(
-                              children: [
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
+                            LayoutBuilder(
+                              builder: (context, constraints) {
+                                final firstName = _buildNameField(
+                                  label: 'First Name',
+                                  controller: _firstNameController,
+                                );
+                                final lastName = _buildNameField(
+                                  label: 'Last Name',
+                                  controller: _lastNameController,
+                                );
+
+                                if (constraints.maxWidth < 280) {
+                                  return Column(
                                     children: [
-                                      const Text('First Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                      const SizedBox(height: 8),
-                                      CustomTextField(
-                                        controller: _firstNameController,
-                                        hintText: 'First Name',
-                                        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                                      ),
+                                      firstName,
+                                      const SizedBox(height: 16),
+                                      lastName,
                                     ],
-                                  ),
-                                ),
-                                const SizedBox(width: 12),
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      const Text('Last Name', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                      const SizedBox(height: 8),
-                                      CustomTextField(
-                                        controller: _lastNameController,
-                                        hintText: 'Last Name',
-                                        validator: (value) => value == null || value.isEmpty ? 'Required' : null,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ],
+                                  );
+                                }
+
+                                return Row(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(child: firstName),
+                                    const SizedBox(width: 12),
+                                    Expanded(child: lastName),
+                                  ],
+                                );
+                              },
                             ),
                             const SizedBox(height: 12),
                             Row(
                               children: [
-                                Icon(Icons.info_outline, size: 14, color: Colors.grey[500]),
+                                Icon(
+                                  Icons.info_outline,
+                                  size: 14,
+                                  color: Colors.grey[500],
+                                ),
                                 const SizedBox(width: 6),
                                 Expanded(
                                   child: Text(
                                     'Real name changes are restricted to once every 30 days.',
-                                    style: TextStyle(fontSize: 11, color: Colors.grey[600], fontStyle: FontStyle.italic),
+                                    style: TextStyle(
+                                      fontSize: 11,
+                                      color: Colors.grey[600],
+                                      fontStyle: FontStyle.italic,
+                                    ),
                                   ),
                                 ),
                               ],
@@ -312,7 +328,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           border: Border.all(color: Colors.grey.shade200),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlpha((0.02 * 255).round()),
+                              color: Colors.black.withAlpha(
+                                (0.02 * 255).round(),
+                              ),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -324,14 +342,22 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const Text(
                               'Personal Details',
                               style: TextStyle(
-                                  fontSize: 14,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87),
+                                fontSize: 14,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
                             ),
                             const SizedBox(height: 16),
-                            
+
                             // Age Input
-                            const Text('Age', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            const Text(
+                              'Age',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             CustomTextField(
                               controller: _ageController,
@@ -340,18 +366,27 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               validator: (value) {
                                 if (value != null && value.isNotEmpty) {
                                   final ageVal = int.tryParse(value);
-                                  if (ageVal == null || ageVal < 12 || ageVal > 120) {
+                                  if (ageVal == null ||
+                                      ageVal < 12 ||
+                                      ageVal > 120) {
                                     return 'You must be at least 12 years old';
                                   }
                                 }
                                 return null;
                               },
                             ),
-                            
+
                             const SizedBox(height: 16),
-                            
+
                             // Gender Dropdown
-                            const Text('Gender', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            const Text(
+                              'Gender',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
@@ -360,30 +395,56 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: Color(0xFF3F7CF4), width: 2),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF3F7CF4),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
                               items: ['Male', 'Female', 'Prefer not to say']
-                                  .map((g) => DropdownMenuItem(value: g, child: Text(g, overflow: TextOverflow.ellipsis)))
+                                  .map(
+                                    (g) => DropdownMenuItem(
+                                      value: g,
+                                      child: Text(
+                                        g,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  )
                                   .toList(),
-                              onChanged: (val) => setState(() => _selectedGender = val),
+                              onChanged: (val) =>
+                                  setState(() => _selectedGender = val),
                             ),
-                            
+
                             const SizedBox(height: 16),
-                            
+
                             // Grade Level Dropdown
-                            const Text('Grade / Career Level', style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Colors.black87)),
+                            const Text(
+                              'Grade / Career Level',
+                              style: TextStyle(
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
@@ -392,32 +453,52 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.grey[50],
-                                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                                contentPadding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 14,
+                                ),
                                 border: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: BorderSide(color: Colors.grey[300]!),
+                                  borderSide: BorderSide(
+                                    color: Colors.grey[300]!,
+                                  ),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius: BorderRadius.circular(10),
-                                  borderSide: const BorderSide(color: Color(0xFF3F7CF4), width: 2),
+                                  borderSide: const BorderSide(
+                                    color: Color(0xFF3F7CF4),
+                                    width: 2,
+                                  ),
                                 ),
                               ),
-                              items: [
-                                'Elementary',
-                                'Junior High School',
-                                'Senior High School',
-                                'College / University',
-                                'Graduate / Post-graduate',
-                                'Working Professional',
-                                'Other'
-                              ]
-                                  .map((g) => DropdownMenuItem(value: g, child: Text(g, overflow: TextOverflow.ellipsis)))
-                                  .toList(),
-                              onChanged: (val) => setState(() => _selectedGradeLevel = val),
+                              items:
+                                  [
+                                        'Elementary',
+                                        'Junior High School',
+                                        'Senior High School',
+                                        'College / University',
+                                        'Graduate / Post-graduate',
+                                        'Working Professional',
+                                        'Other',
+                                      ]
+                                      .map(
+                                        (g) => DropdownMenuItem(
+                                          value: g,
+                                          child: Text(
+                                            g,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                        ),
+                                      )
+                                      .toList(),
+                              onChanged: (val) =>
+                                  setState(() => _selectedGradeLevel = val),
                             ),
                           ],
                         ),
@@ -434,7 +515,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                           border: Border.all(color: Colors.grey.shade200),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withAlpha((0.02 * 255).round()),
+                              color: Colors.black.withAlpha(
+                                (0.02 * 255).round(),
+                              ),
                               blurRadius: 8,
                               offset: const Offset(0, 2),
                             ),
@@ -454,8 +537,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const SizedBox(height: 12),
                             TextFormField(
                               controller: _emailController,
-                              enabled: false, 
-                              style: TextStyle(color: Colors.grey[600]), 
+                              enabled: false,
+                              style: TextStyle(color: Colors.grey[600]),
                               decoration: InputDecoration(
                                 filled: true,
                                 fillColor: Colors.grey[100],
@@ -463,7 +546,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                   borderRadius: BorderRadius.circular(12),
                                   borderSide: BorderSide.none,
                                 ),
-                                suffixIcon: const Icon(Icons.lock, color: Colors.grey, size: 20),
+                                suffixIcon: const Icon(
+                                  Icons.lock,
+                                  color: Colors.grey,
+                                  size: 20,
+                                ),
                               ),
                             ),
                           ],
@@ -486,6 +573,32 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildNameField({
+    required String label,
+    required TextEditingController controller,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: const TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            color: Colors.black87,
+          ),
+        ),
+        const SizedBox(height: 8),
+        CustomTextField(
+          controller: controller,
+          hintText: label,
+          validator: (value) =>
+              value == null || value.isEmpty ? 'Required' : null,
+        ),
+      ],
     );
   }
 }

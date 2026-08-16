@@ -28,7 +28,8 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   List<dynamic> _guidedTasks = [];
 
   // --- LEVEL FILTER ---
-  String _userLevel = '';   // 'Beginner', 'Intermediate', 'Advanced' or '' (no filter)
+  String _userLevel =
+      ''; // 'Beginner', 'Intermediate', 'Advanced' or '' (no filter)
 
   @override
   void initState() {
@@ -67,9 +68,15 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
         }
 
         setState(() {
-          _scripts   = filtered(allResources.where((r) => r['type'] == 'Script').toList());
-          _challenges = filtered(allResources.where((r) => r['type'] == 'Challenge').toList());
-          _guidedTasks = filtered(allResources.where((r) => r['type'] == 'GuidedTask').toList());
+          _scripts = filtered(
+            allResources.where((r) => r['type'] == 'Script').toList(),
+          );
+          _challenges = filtered(
+            allResources.where((r) => r['type'] == 'Challenge').toList(),
+          );
+          _guidedTasks = filtered(
+            allResources.where((r) => r['type'] == 'GuidedTask').toList(),
+          );
           _isLoading = false;
         });
       } else {
@@ -110,10 +117,14 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
             style: const TextStyle(decoration: TextDecoration.none),
             child: Column(
               children: [
-                _header(context), 
+                _header(context),
                 Expanded(
                   child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: Color(0xFF3F7CF4)))
+                      ? const Center(
+                          child: CircularProgressIndicator(
+                            color: Color(0xFF3F7CF4),
+                          ),
+                        )
                       : SingleChildScrollView(
                           padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
                           child: Column(
@@ -123,11 +134,14 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                               const SizedBox(height: 20),
                               _subTitle(),
                               const SizedBox(height: 14),
-                              
+
                               // Dynamically rendering from backend data
-                              if (_activeTab == _Tab.scripts) ..._buildScriptCards(),
-                              if (_activeTab == _Tab.challenges) ..._buildChallengeCards(),
-                              if (_activeTab == _Tab.guidedTasks) ..._buildGuidedTaskCards(),
+                              if (_activeTab == _Tab.scripts)
+                                ..._buildScriptCards(),
+                              if (_activeTab == _Tab.challenges)
+                                ..._buildChallengeCards(),
+                              if (_activeTab == _Tab.guidedTasks)
+                                ..._buildGuidedTaskCards(),
                             ],
                           ),
                         ),
@@ -158,9 +172,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
-      decoration: const BoxDecoration(
-        color: Color(0xFF3F7CF4),
-      ),
+      decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -171,29 +183,50 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
               children: [
                 Icon(Icons.chevron_left, color: Colors.white, size: 24),
                 SizedBox(width: 4),
-                Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
+                Text(
+                  'Back',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ],
             ),
           ),
           const SizedBox(height: 16),
-          const Text('Learning Resources',
-            style: TextStyle(color: Colors.white, fontSize: 26, fontWeight: FontWeight.bold),
+          const Text(
+            'Learning Resources',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 26,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
-          const Text('Improve your speaking skills',
+          const Text(
+            'Improve your speaking skills',
             style: TextStyle(color: Colors.white70, fontSize: 14),
           ),
           if (_userLevel.isNotEmpty) ...[
             const SizedBox(height: 12),
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Icon(Icons.filter_list, color: Colors.white70, size: 14),
-                const SizedBox(width: 6),
-                const Text('Showing resources for your level:',
-                  style: TextStyle(color: Colors.white70, fontSize: 12)),
-                const SizedBox(width: 8),
+                const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.filter_list, color: Colors.white70, size: 14),
+                    SizedBox(width: 6),
+                    Text(
+                      'Showing resources for your level:',
+                      style: TextStyle(color: Colors.white70, fontSize: 12),
+                    ),
+                  ],
+                ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 12,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
                     color: Colors.white.withAlpha(40),
                     borderRadius: BorderRadius.circular(20),
@@ -204,19 +237,21 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                     children: [
                       Icon(levelIcon, color: Colors.white, size: 13),
                       const SizedBox(width: 5),
-                      Text(_userLevel,
+                      Text(
+                        _userLevel,
                         style: const TextStyle(
                           color: Colors.white,
                           fontSize: 12,
                           fontWeight: FontWeight.bold,
-                        )),
+                        ),
+                      ),
                     ],
                   ),
                 ),
               ],
             ),
           ],
-          const SizedBox(height: 8), 
+          const SizedBox(height: 8),
         ],
       ),
     );
@@ -269,11 +304,20 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   Widget _subTitle() {
     switch (_activeTab) {
       case _Tab.scripts:
-        return const Text('Choose a script to practice with', style: TextStyle(fontSize: 13, color: Colors.grey));
+        return const Text(
+          'Choose a script to practice with',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        );
       case _Tab.challenges:
-        return const Text('Test your skills with timed challenges', style: TextStyle(fontSize: 13, color: Colors.grey));
+        return const Text(
+          'Test your skills with timed challenges',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        );
       case _Tab.guidedTasks:
-        return const Text('Step-by-step exercises to improve your skills', style: TextStyle(fontSize: 13, color: Colors.grey));
+        return const Text(
+          'Step-by-step exercises to improve your skills',
+          style: TextStyle(fontSize: 13, color: Colors.grey),
+        );
     }
   }
 
@@ -283,7 +327,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     if (_scripts.isEmpty) {
       return [_buildEmptyState('scripts')];
     }
-    
+
     return _scripts.map((scriptData) {
       return Padding(
         padding: const EdgeInsets.only(bottom: 12),
@@ -296,10 +340,12 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => ScriptDetailPage(
-                script: scriptData,
-                userId: widget.userId, // <-- FIX APPLIED HERE
-              )),
+              MaterialPageRoute(
+                builder: (_) => ScriptDetailPage(
+                  script: scriptData,
+                  userId: widget.userId, // <-- FIX APPLIED HERE
+                ),
+              ),
             );
           },
         ),
@@ -320,7 +366,11 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           description: challengeData['description'] ?? '',
           durationSeconds: challengeData['timeLimitSeconds'] ?? 60,
           difficulty: _mapDifficulty(challengeData['difficulty']),
-          targetWpm: challengeData['targetMetric'] ?? '120 WPM',
+          targetWpm:
+              (challengeData['targetMetric']?.toString().trim().isNotEmpty ??
+                  false)
+              ? challengeData['targetMetric'].toString()
+              : '120-150 WPM',
           onTap: () {
             Navigator.push(
               context,
@@ -331,7 +381,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                   onBack: () => Navigator.pop(context),
                   onBackToHome: () {
                     Navigator.pop(context);
-                    if (widget.onBack != null) widget.onBack!(); 
+                    if (widget.onBack != null) widget.onBack!();
                   },
                 ),
               ),
@@ -359,7 +409,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           onTap: () {
             Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => GuidedTaskDetailPage(task: taskData)),
+              MaterialPageRoute(
+                builder: (_) => GuidedTaskDetailPage(task: taskData),
+              ),
             );
           },
         ),
@@ -373,7 +425,11 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       child: Center(
         child: Column(
           children: [
-            Icon(Icons.search_off_rounded, size: 56, color: Colors.grey.shade300),
+            Icon(
+              Icons.search_off_rounded,
+              size: 56,
+              color: Colors.grey.shade300,
+            ),
             const SizedBox(height: 14),
             Text(
               'No $_userLevel $contentType yet',
@@ -387,7 +443,11 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
             Text(
               'Check back later — more content\nfor your level is on the way!',
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, color: Colors.grey.shade400, height: 1.5),
+              style: TextStyle(
+                fontSize: 13,
+                color: Colors.grey.shade400,
+                height: 1.5,
+              ),
             ),
           ],
         ),
@@ -406,31 +466,44 @@ class _ScriptCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const _ScriptCard({
-    required this.title, required this.description, required this.duration,
-    required this.difficulty, required this.language, this.onTap,
+    required this.title,
+    required this.description,
+    required this.duration,
+    required this.difficulty,
+    required this.language,
+    this.onTap,
   });
 
   Color get _difficultyColor {
     switch (difficulty) {
-      case ChallengeDifficulty.beginner:     return const Color(0xFF3FBD7A);
-      case ChallengeDifficulty.intermediate: return const Color(0xFF3F7CF4);
-      case ChallengeDifficulty.advanced:     return const Color(0xFFB45FD4);
+      case ChallengeDifficulty.beginner:
+        return const Color(0xFF3FBD7A);
+      case ChallengeDifficulty.intermediate:
+        return const Color(0xFF3F7CF4);
+      case ChallengeDifficulty.advanced:
+        return const Color(0xFFB45FD4);
     }
   }
 
   Color get _difficultyBg {
     switch (difficulty) {
-      case ChallengeDifficulty.beginner:     return const Color(0xFFDFF5E8);
-      case ChallengeDifficulty.intermediate: return const Color(0xFFE6EEFF);
-      case ChallengeDifficulty.advanced:     return const Color(0xFFF3E6FF);
+      case ChallengeDifficulty.beginner:
+        return const Color(0xFFDFF5E8);
+      case ChallengeDifficulty.intermediate:
+        return const Color(0xFFE6EEFF);
+      case ChallengeDifficulty.advanced:
+        return const Color(0xFFF3E6FF);
     }
   }
 
   String get _difficultyLabel {
     switch (difficulty) {
-      case ChallengeDifficulty.beginner:     return 'Beginner';
-      case ChallengeDifficulty.intermediate: return 'Intermediate';
-      case ChallengeDifficulty.advanced:     return 'Advanced';
+      case ChallengeDifficulty.beginner:
+        return 'Beginner';
+      case ChallengeDifficulty.intermediate:
+        return 'Intermediate';
+      case ChallengeDifficulty.advanced:
+        return 'Advanced';
     }
   }
 
@@ -442,7 +515,8 @@ class _ScriptCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
         ),
         child: Row(
@@ -452,27 +526,82 @@ class _ScriptCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
                   const SizedBox(height: 5),
-                  Text(description, style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4)),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Wrap(
-                    spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.access_time, size: 13, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(duration, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                      ]),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: _difficultyBg, borderRadius: BorderRadius.circular(20)),
-                        child: Text(_difficultyLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _difficultyColor)),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            duration,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
                       ),
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: Colors.grey.shade100, borderRadius: BorderRadius.circular(20)),
-                        child: Text(language, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, color: Colors.grey.shade600)),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _difficultyBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _difficultyLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _difficultyColor,
+                          ),
+                        ),
+                      ),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.grey.shade100,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          language,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
+                            color: Colors.grey.shade600,
+                          ),
+                        ),
                       ),
                     ],
                   ),
@@ -480,7 +609,10 @@ class _ScriptCard extends StatelessWidget {
               ),
             ),
             const SizedBox(width: 8),
-            const Padding(padding: EdgeInsets.only(top: 2), child: Icon(Icons.chevron_right, color: Colors.grey, size: 22)),
+            const Padding(
+              padding: EdgeInsets.only(top: 2),
+              child: Icon(Icons.chevron_right, color: Colors.grey, size: 22),
+            ),
           ],
         ),
       ),
@@ -498,8 +630,12 @@ class _GuidedTaskCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const _GuidedTaskCard({
-    required this.title, required this.steps, required this.durationMin,
-    required this.category, required this.icon, this.onTap,
+    required this.title,
+    required this.steps,
+    required this.durationMin,
+    required this.category,
+    required this.icon,
+    this.onTap,
   });
 
   @override
@@ -510,15 +646,20 @@ class _GuidedTaskCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
             Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(color: const Color(0xFFE6EEFF), borderRadius: BorderRadius.circular(12)),
+              width: 44,
+              height: 44,
+              decoration: BoxDecoration(
+                color: const Color(0xFFE6EEFF),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: Icon(icon, color: const Color(0xFF3F7CF4), size: 22),
             ),
             const SizedBox(width: 14),
@@ -526,14 +667,37 @@ class _GuidedTaskCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
                   const SizedBox(height: 3),
-                  Text('$steps steps • $durationMin min', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
+                  Text(
+                    '$steps steps • $durationMin min',
+                    style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
+                  ),
                   const SizedBox(height: 7),
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                    decoration: BoxDecoration(color: const Color(0xFFE6EEFF), borderRadius: BorderRadius.circular(20)),
-                    child: Text(category, style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: Color(0xFF3F7CF4))),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 10,
+                      vertical: 3,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE6EEFF),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Text(
+                      category,
+                      style: const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        color: Color(0xFF3F7CF4),
+                      ),
+                    ),
                   ),
                 ],
               ),
@@ -556,31 +720,44 @@ class _ChallengeCard extends StatelessWidget {
   final VoidCallback? onTap;
 
   const _ChallengeCard({
-    required this.title, required this.description, required this.durationSeconds,
-    required this.difficulty, required this.targetWpm, this.onTap,
+    required this.title,
+    required this.description,
+    required this.durationSeconds,
+    required this.difficulty,
+    required this.targetWpm,
+    this.onTap,
   });
 
   Color get _difficultyColor {
     switch (difficulty) {
-      case ChallengeDifficulty.beginner:     return const Color(0xFF3FBD7A);
-      case ChallengeDifficulty.intermediate: return const Color(0xFF3F7CF4);
-      case ChallengeDifficulty.advanced:     return const Color(0xFFB45FD4);
+      case ChallengeDifficulty.beginner:
+        return const Color(0xFF3FBD7A);
+      case ChallengeDifficulty.intermediate:
+        return const Color(0xFF3F7CF4);
+      case ChallengeDifficulty.advanced:
+        return const Color(0xFFB45FD4);
     }
   }
 
   Color get _difficultyBg {
     switch (difficulty) {
-      case ChallengeDifficulty.beginner:     return const Color(0xFFDFF5E8);
-      case ChallengeDifficulty.intermediate: return const Color(0xFFE6EEFF);
-      case ChallengeDifficulty.advanced:     return const Color(0xFFF3E6FF);
+      case ChallengeDifficulty.beginner:
+        return const Color(0xFFDFF5E8);
+      case ChallengeDifficulty.intermediate:
+        return const Color(0xFFE6EEFF);
+      case ChallengeDifficulty.advanced:
+        return const Color(0xFFF3E6FF);
     }
   }
 
   String get _difficultyLabel {
     switch (difficulty) {
-      case ChallengeDifficulty.beginner:     return 'Beginner';
-      case ChallengeDifficulty.intermediate: return 'Intermediate';
-      case ChallengeDifficulty.advanced:     return 'Advanced';
+      case ChallengeDifficulty.beginner:
+        return 'Beginner';
+      case ChallengeDifficulty.intermediate:
+        return 'Intermediate';
+      case ChallengeDifficulty.advanced:
+        return 'Advanced';
     }
   }
 
@@ -594,7 +771,8 @@ class _ChallengeCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white, borderRadius: BorderRadius.circular(14),
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(14),
           boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
         ),
         child: Row(
@@ -604,28 +782,83 @@ class _ChallengeCard extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF1A1A2E),
+                    ),
+                  ),
                   const SizedBox(height: 5),
-                  Text(description, style: const TextStyle(fontSize: 12, color: Colors.grey, height: 1.4)),
+                  Text(
+                    description,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Colors.grey,
+                      height: 1.4,
+                    ),
+                  ),
                   const SizedBox(height: 10),
                   Wrap(
-                    spacing: 8, runSpacing: 6, crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 6,
+                    crossAxisAlignment: WrapCrossAlignment.center,
                     children: [
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.access_time, size: 13, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text(_formattedDuration, style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                      ]),
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
-                        decoration: BoxDecoration(color: _difficultyBg, borderRadius: BorderRadius.circular(20)),
-                        child: Text(_difficultyLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _difficultyColor)),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.access_time,
+                            size: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            _formattedDuration,
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
                       ),
-                      Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.speed, size: 13, color: Colors.grey.shade500),
-                        const SizedBox(width: 4),
-                        Text('Target: $targetWpm', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
-                      ]),
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: _difficultyBg,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Text(
+                          _difficultyLabel,
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: _difficultyColor,
+                          ),
+                        ),
+                      ),
+                      Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(
+                            Icons.speed,
+                            size: 13,
+                            color: Colors.grey.shade500,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Target: $targetWpm',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.grey.shade500,
+                            ),
+                          ),
+                        ],
+                      ),
                     ],
                   ),
                 ],
@@ -633,8 +866,12 @@ class _ChallengeCard extends StatelessWidget {
             ),
             const SizedBox(width: 12),
             Container(
-              width: 40, height: 40,
-              decoration: BoxDecoration(color: const Color(0xFF3F7CF4), borderRadius: BorderRadius.circular(12)),
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: const Color(0xFF3F7CF4),
+                borderRadius: BorderRadius.circular(12),
+              ),
               child: const Icon(Icons.adjust, color: Colors.white, size: 22),
             ),
           ],
@@ -693,7 +930,7 @@ class GuidedTaskDetailPage extends StatelessWidget {
     final title = task['title'] ?? 'Guided Task';
     final category = task['category'] ?? 'General';
     final duration = '${task['estimatedMinutes'] ?? 0} min';
-    
+
     final double topPadding = MediaQuery.of(context).padding.top;
 
     return Container(
@@ -714,7 +951,10 @@ class GuidedTaskDetailPage extends StatelessWidget {
               children: [
                 Icon(Icons.chevron_left, color: Colors.white, size: 24),
                 SizedBox(width: 4),
-                Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
+                Text(
+                  'Back',
+                  style: TextStyle(color: Colors.white, fontSize: 16),
+                ),
               ],
             ),
           ),
@@ -722,15 +962,15 @@ class GuidedTaskDetailPage extends StatelessWidget {
           Text(
             title,
             style: const TextStyle(
-              color: Colors.white, 
-              fontSize: 24, 
-              fontWeight: FontWeight.bold
-            )
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 4),
           Text(
             '$category • $duration',
-            style: const TextStyle(color: Colors.white70, fontSize: 13)
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
           ),
           const SizedBox(height: 8), // Extra padding for breathing room
         ],
@@ -756,15 +996,27 @@ class GuidedTaskDetailPage extends StatelessWidget {
             children: [
               Icon(Icons.menu_book_rounded, color: Color(0xFF3F7CF4), size: 20),
               SizedBox(width: 8),
-              Text(
-                'Step-by-Step Guide',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))
+              Expanded(
+                child: Text(
+                  'Step-by-Step Guide',
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                ),
               ),
             ],
           ),
           const SizedBox(height: 16),
-          if (steps.isEmpty) const Text("No steps provided.", style: TextStyle(color: Colors.grey)),
-          ...steps.asMap().entries.map((e) => _buildStepRow(e.key + 1, e.value.toString())),
+          if (steps.isEmpty)
+            const Text(
+              "No steps provided.",
+              style: TextStyle(color: Colors.grey),
+            ),
+          ...steps.asMap().entries.map(
+            (e) => _buildStepRow(e.key + 1, e.value.toString()),
+          ),
         ],
       ),
     );
@@ -777,18 +1029,34 @@ class GuidedTaskDetailPage extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 28, height: 28,
-            decoration: const BoxDecoration(color: Color(0xFF3F7CF4), shape: BoxShape.circle),
+            width: 28,
+            height: 28,
+            decoration: const BoxDecoration(
+              color: Color(0xFF3F7CF4),
+              shape: BoxShape.circle,
+            ),
             alignment: Alignment.center,
-            child: Text('$number',
-                style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text(
+              '$number',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Padding(
               padding: const EdgeInsets.only(top: 4),
-              child: Text(text,
-                  style: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.5)),
+              child: Text(
+                text,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Colors.black87,
+                  height: 1.5,
+                ),
+              ),
             ),
           ),
         ],
@@ -800,8 +1068,8 @@ class GuidedTaskDetailPage extends StatelessWidget {
     return Container(
       width: double.infinity,
       decoration: BoxDecoration(
-        color: const Color(0xFFE6EEFF), 
-        borderRadius: BorderRadius.circular(14)
+        color: const Color(0xFFE6EEFF),
+        borderRadius: BorderRadius.circular(14),
       ),
       padding: const EdgeInsets.all(18),
       child: Column(
@@ -811,13 +1079,25 @@ class GuidedTaskDetailPage extends StatelessWidget {
             children: [
               Icon(Icons.star_rounded, color: Colors.amber.shade600, size: 20),
               const SizedBox(width: 6),
-              const Text('Pro Tip',
-                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold, color: Color(0xFF3F7CF4))),
+              const Text(
+                'Pro Tip',
+                style: TextStyle(
+                  fontSize: 15,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF3F7CF4),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 10),
-          Text(proTip,
-              style: const TextStyle(fontSize: 13, color: Colors.black87, height: 1.5)),
+          Text(
+            proTip,
+            style: const TextStyle(
+              fontSize: 13,
+              color: Colors.black87,
+              height: 1.5,
+            ),
+          ),
         ],
       ),
     );

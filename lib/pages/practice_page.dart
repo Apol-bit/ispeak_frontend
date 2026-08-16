@@ -11,7 +11,7 @@ enum PracticeState { ready, recording, paused }
 
 class PracticePage extends StatefulWidget {
   final String userId;
-  final Function(Map<String, dynamic>)? onFinish; 
+  final Function(Map<String, dynamic>)? onFinish;
 
   const PracticePage({super.key, required this.userId, this.onFinish});
 
@@ -23,9 +23,9 @@ class _PracticePageState extends State<PracticePage> {
   PracticeState _state = PracticeState.ready;
   Timer? _timer;
   int _seconds = 0;
-  bool _isUploading = false; 
-  
-  bool _isEnglish = true; 
+  bool _isUploading = false;
+
+  bool _isEnglish = true;
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
@@ -44,15 +44,16 @@ class _PracticePageState extends State<PracticePage> {
         if (_state == PracticeState.ready) {
           _seconds = 0;
           final Directory tempDir = await getTemporaryDirectory();
-          _audioPath = '${tempDir.path}/ispeak_${DateTime.now().millisecondsSinceEpoch}.wav';
-          
+          _audioPath =
+              '${tempDir.path}/ispeak_${DateTime.now().millisecondsSinceEpoch}.wav';
+
           // Configured for Whisper AI
           await _audioRecorder.start(
             const RecordConfig(
               encoder: AudioEncoder.wav,
               sampleRate: 16000,
               numChannels: 1,
-            ), 
+            ),
             path: _audioPath!,
           );
         } else if (_state == PracticeState.paused) {
@@ -60,7 +61,10 @@ class _PracticePageState extends State<PracticePage> {
         }
 
         setState(() => _state = PracticeState.recording);
-        _timer = Timer.periodic(const Duration(seconds: 1), (_) => setState(() => _seconds++));
+        _timer = Timer.periodic(
+          const Duration(seconds: 1),
+          (_) => setState(() => _seconds++),
+        );
       }
     } catch (e) {
       debugPrint("Error starting record: $e");
@@ -99,47 +103,79 @@ class _PracticePageState extends State<PracticePage> {
       color: const Color(0xFFF0F0F3),
       child: SafeArea(
         bottom: false,
-        child: SingleChildScrollView( 
+        child: SingleChildScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
           padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
           child: Column(
             children: [
               const SizedBox(height: 10),
-              
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Expanded(
-                    child: Column(
+
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  const title = Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Practice Session',
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      Text(
+                        'Record your speech to get instant feedback',
+                        style: TextStyle(color: Colors.grey, fontSize: 13),
+                      ),
+                    ],
+                  );
+
+                  if (constraints.maxWidth < 340) {
+                    return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
-                      children: const [
-                        Text('Practice Session', style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                        SizedBox(height: 8),
-                        Text('Record your speech to get instant feedback', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      children: [
+                        title,
+                        const SizedBox(height: 12),
+                        _buildLanguageToggle(),
                       ],
-                    ),
-                  ),
-                  _buildLanguageToggle(),
-                ],
+                    );
+                  }
+
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(child: title),
+                      const SizedBox(width: 12),
+                      _buildLanguageToggle(),
+                    ],
+                  );
+                },
               ),
-              
+
               const SizedBox(height: 30),
 
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(
-                    Icons.language, 
-                    size: 16, 
-                    color: _isEnglish ? const Color(0xFF3F7CF4) : const Color(0xFFF5A623)
+                    Icons.language,
+                    size: 16,
+                    color: _isEnglish
+                        ? const Color(0xFF3F7CF4)
+                        : const Color(0xFFF5A623),
                   ),
                   const SizedBox(width: 8),
-                  Text(
-                    'Practicing in ${_isEnglish ? "English" : "Filipino"}',
-                    style: TextStyle(
-                      color: _isEnglish ? const Color(0xFF3F7CF4) : const Color(0xFFF5A623),
-                      fontWeight: FontWeight.w600,
-                      fontSize: 14,
+                  Flexible(
+                    child: Text(
+                      'Practicing in ${_isEnglish ? "English" : "Filipino"}',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(
+                        color: _isEnglish
+                            ? const Color(0xFF3F7CF4)
+                            : const Color(0xFFF5A623),
+                        fontWeight: FontWeight.w600,
+                        fontSize: 14,
+                      ),
                     ),
                   ),
                 ],
@@ -151,10 +187,10 @@ class _PracticePageState extends State<PracticePage> {
               const SizedBox(height: 40),
 
               // ---> CONDITION FIX: Changed to 10 seconds <---
-              if (_state == PracticeState.paused && _seconds >= 10) 
+              if (_state == PracticeState.paused && _seconds >= 10)
                 _finishButton(),
-                
-              const SizedBox(height: 140), 
+
+              const SizedBox(height: 140),
             ],
           ),
         ),
@@ -173,38 +209,66 @@ class _PracticePageState extends State<PracticePage> {
         mainAxisSize: MainAxisSize.min,
         children: [
           GestureDetector(
-            onTap: _state == PracticeState.recording ? null : () => setState(() => _isEnglish = true),
+            onTap: _state == PracticeState.recording
+                ? null
+                : () => setState(() => _isEnglish = true),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: _isEnglish ? const Color(0xFF3F7CF4) : Colors.transparent,
+                color: _isEnglish
+                    ? const Color(0xFF3F7CF4)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: _isEnglish 
-                    ? [BoxShadow(color: const Color(0xFF3F7CF4).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                boxShadow: _isEnglish
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFF3F7CF4).withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
                     : [],
               ),
               child: Text(
-                'EN', 
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _isEnglish ? Colors.white : Colors.grey.shade600),
+                'EN',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: _isEnglish ? Colors.white : Colors.grey.shade600,
+                ),
               ),
             ),
           ),
           GestureDetector(
-            onTap: _state == PracticeState.recording ? null : () => setState(() => _isEnglish = false),
+            onTap: _state == PracticeState.recording
+                ? null
+                : () => setState(() => _isEnglish = false),
             child: AnimatedContainer(
               duration: const Duration(milliseconds: 200),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
-                color: !_isEnglish ? const Color(0xFFF5A623) : Colors.transparent,
+                color: !_isEnglish
+                    ? const Color(0xFFF5A623)
+                    : Colors.transparent,
                 borderRadius: BorderRadius.circular(16),
-                boxShadow: !_isEnglish 
-                    ? [BoxShadow(color: const Color(0xFFF5A623).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))]
+                boxShadow: !_isEnglish
+                    ? [
+                        BoxShadow(
+                          color: const Color(0xFFF5A623).withOpacity(0.3),
+                          blurRadius: 4,
+                          offset: const Offset(0, 2),
+                        ),
+                      ]
                     : [],
               ),
               child: Text(
-                'FIL', 
-                style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: !_isEnglish ? Colors.white : Colors.grey.shade600),
+                'FIL',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  color: !_isEnglish ? Colors.white : Colors.grey.shade600,
+                ),
               ),
             ),
           ),
@@ -221,33 +285,66 @@ class _PracticePageState extends State<PracticePage> {
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 5))],
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
           GestureDetector(
-            onTap: _isUploading ? null : () {
-              if (_state == PracticeState.ready) {
-                _start();
-              } else if (_state == PracticeState.recording) _pause();
-              else _start();
-            },
+            onTap: _isUploading
+                ? null
+                : () {
+                    if (_state == PracticeState.ready) {
+                      _start();
+                    } else if (_state == PracticeState.recording)
+                      _pause();
+                    else
+                      _start();
+                  },
             child: CircleAvatar(
               radius: 50,
-              backgroundColor: isRecording ? Colors.redAccent : const Color(0xFF3F7CF4),
-              child: Icon(isRecording ? Icons.pause : Icons.mic, color: Colors.white, size: 40),
+              backgroundColor: isRecording
+                  ? Colors.redAccent
+                  : const Color(0xFF3F7CF4),
+              child: Icon(
+                isRecording ? Icons.pause : Icons.mic,
+                color: Colors.white,
+                size: 40,
+              ),
             ),
           ),
           const SizedBox(height: 24),
           Text(
-            _state == PracticeState.ready ? 'Ready to Record' : _state == PracticeState.recording ? 'Recording...' : 'Paused',
+            _state == PracticeState.ready
+                ? 'Ready to Record'
+                : _state == PracticeState.recording
+                ? 'Recording...'
+                : 'Paused',
             style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16),
           ),
           const SizedBox(height: 12),
-          Text(_time, style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Color(0xFF3F7CF4))),
+          Text(
+            _time,
+            style: const TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF3F7CF4),
+            ),
+          ),
           const SizedBox(height: 10),
           if (_state == PracticeState.paused && !_isUploading)
-            TextButton(onPressed: _reset, child: const Text("Reset Session", style: TextStyle(color: Colors.redAccent))),
+            TextButton(
+              onPressed: _reset,
+              child: const Text(
+                "Reset Session",
+                style: TextStyle(color: Colors.redAccent),
+              ),
+            ),
         ],
       ),
     );
@@ -260,45 +357,80 @@ class _PracticePageState extends State<PracticePage> {
         style: ElevatedButton.styleFrom(
           backgroundColor: const Color(0xFF3F7CF4),
           padding: const EdgeInsets.symmetric(vertical: 16),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+          ),
           elevation: 4,
         ),
-        onPressed: _isUploading ? null : () async {
-          _timer?.cancel();
-          setState(() => _isUploading = true); 
-          
-          try {
-            final finalPath = await _audioRecorder.stop();
-            
-            if (finalPath != null) {
-              var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
-              
-              request.fields['userId'] = widget.userId;
-              request.fields['language'] = _isEnglish ? 'English' : 'Filipino'; 
-              
-              request.files.add(await http.MultipartFile.fromPath('audio', finalPath));
+        onPressed: _isUploading
+            ? null
+            : () async {
+                _timer?.cancel();
+                setState(() => _isUploading = true);
 
-              var streamedResponse = await request.send();
-              var response = await http.Response.fromStream(streamedResponse);
+                try {
+                  final finalPath = await _audioRecorder.stop();
 
-              if (response.statusCode == 200 || response.statusCode == 201) {
-                final resultData = jsonDecode(response.body);
-                widget.onFinish?.call(resultData); 
-              } else {
-                if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Failed: ${response.body}')));
+                  if (finalPath != null) {
+                    var request = http.MultipartRequest(
+                      'POST',
+                      Uri.parse('${ApiConfig.baseUrl}/upload-audio'),
+                    );
+
+                    request.fields['userId'] = widget.userId;
+                    request.fields['language'] = _isEnglish
+                        ? 'English'
+                        : 'Filipino';
+
+                    request.files.add(
+                      await http.MultipartFile.fromPath('audio', finalPath),
+                    );
+
+                    var streamedResponse = await request.send();
+                    var response = await http.Response.fromStream(
+                      streamedResponse,
+                    );
+
+                    if (response.statusCode == 200 ||
+                        response.statusCode == 201) {
+                      final resultData = jsonDecode(response.body);
+                      widget.onFinish?.call(resultData);
+                    } else {
+                      if (mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text('Upload Failed: ${response.body}'),
+                          ),
+                        );
+                      }
+                    }
+                  }
+                } catch (e) {
+                  debugPrint("Error uploading: $e");
+                  if (mounted)
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('Connection Error')),
+                    );
                 }
-              }
-            }
-          } catch (e) {
-             debugPrint("Error uploading: $e");
-             if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection Error')));
-          }
-          setState(() => _isUploading = false);
-        },
-        child: _isUploading 
-            ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-            : const Text('Finish & Analyze Speech', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                setState(() => _isUploading = false);
+              },
+        child: _isUploading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  color: Colors.white,
+                  strokeWidth: 2,
+                ),
+              )
+            : const Text(
+                'Finish & Analyze Speech',
+                style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
       ),
     );
   }

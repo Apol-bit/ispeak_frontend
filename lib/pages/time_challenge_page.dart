@@ -9,18 +9,19 @@ import '../config/api_config.dart';
 import 'result_page.dart'; // Unified Result Page
 
 enum ChallengeDifficulty { beginner, intermediate, advanced }
+
 enum _PracticeState { ready, recording } // Removed 'paused' state
 
 class TimedChallengePage extends StatefulWidget {
   final dynamic challenge;
-  final String? userId; 
+  final String userId;
   final VoidCallback? onBack;
   final VoidCallback? onBackToHome;
 
   const TimedChallengePage({
     super.key,
     required this.challenge,
-    this.userId, 
+    required this.userId,
     this.onBack,
     this.onBackToHome,
   });
@@ -34,13 +35,23 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   Timer? _timer;
   int _elapsedSeconds = 0;
   bool _isUploading = false;
-  bool _isEnglish = true; 
+  String _selectedLanguage = 'English';
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
 
+  @override
+  void initState() {
+    super.initState();
+    final configuredLanguage = widget.challenge['language'];
+    if (['English', 'Filipino', 'Taglish'].contains(configuredLanguage)) {
+      _selectedLanguage = configuredLanguage;
+    }
+  }
+
   int get _durationSeconds => widget.challenge['timeLimitSeconds'] ?? 60;
-  int get _remainingSeconds => (_durationSeconds - _elapsedSeconds).clamp(0, _durationSeconds);
+  int get _remainingSeconds =>
+      (_durationSeconds - _elapsedSeconds).clamp(0, _durationSeconds);
 
   @override
   void dispose() {
@@ -53,37 +64,38 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
     try {
       if (await _audioRecorder.hasPermission()) {
         _timer?.cancel();
-        
+
         if (_state == _PracticeState.ready) {
           _elapsedSeconds = 0;
           final Directory tempDir = await getTemporaryDirectory();
-          
+
           // ---> AUDIO FIX: Changed .m4a to .wav
-          _audioPath = '${tempDir.path}/ispeak_challenge_${DateTime.now().millisecondsSinceEpoch}.wav';
-          
+          _audioPath =
+              '${tempDir.path}/ispeak_challenge_${DateTime.now().millisecondsSinceEpoch}.wav';
+
           // ---> AUDIO FIX: Configured for Whisper AI
           await _audioRecorder.start(
             const RecordConfig(
               encoder: AudioEncoder.wav,
               sampleRate: 16000,
               numChannels: 1,
-            ), 
+            ),
             path: _audioPath!,
           );
         }
 
         setState(() => _state = _PracticeState.recording);
-        
+
         _timer = Timer.periodic(const Duration(seconds: 1), (_) {
           if (!mounted) return;
           setState(() {
             _elapsedSeconds++;
           });
-          
+
           // Auto-finish if time runs out
           if (_elapsedSeconds >= _durationSeconds) {
             _timer?.cancel();
-            _finishSession(); 
+            _finishSession();
           }
         });
       }
@@ -110,18 +122,26 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
   Future<void> _finishSession() async {
     _timer?.cancel();
-    setState(() => _isUploading = true); 
-    
+    setState(() => _isUploading = true);
+
     try {
       final finalPath = await _audioRecorder.stop();
       if (finalPath != null) {
-        var request = http.MultipartRequest('POST', Uri.parse('${ApiConfig.baseUrl}/upload-audio'));
-        
-        request.fields['userId'] = widget.userId ?? 'test_user';
-        request.fields['language'] = _isEnglish ? 'English' : 'Filipino'; 
-        request.fields['challengeId'] = widget.challenge['_id'] ?? 'unknown'; 
-        
-        request.files.add(await http.MultipartFile.fromPath('audio', finalPath));
+        var request = http.MultipartRequest(
+          'POST',
+          Uri.parse('${ApiConfig.baseUrl}/upload-audio'),
+        );
+
+        request.fields['userId'] = widget.userId;
+        request.fields['language'] = _selectedLanguage;
+        final challengeId = widget.challenge['_id'];
+        if (challengeId is String && challengeId.isNotEmpty) {
+          request.fields['challengeId'] = challengeId;
+        }
+
+        request.files.add(
+          await http.MultipartFile.fromPath('audio', finalPath),
+        );
 
         var streamedResponse = await request.send();
         var response = await http.Response.fromStream(streamedResponse);
@@ -133,7 +153,8 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
               MaterialPageRoute(
                 builder: (_) => ResultPage(
                   sessionData: resultData,
-                  onBackToHome: () => Navigator.popUntil(context, (r) => r.isFirst),
+                  onBackToHome: () =>
+                      Navigator.popUntil(context, (r) => r.isFirst),
                   onPracticeAgain: () {
                     Navigator.pop(context); // Pops the ResultPage
                     _reset(); // Resets the TimedChallengePage for another try
@@ -143,11 +164,17 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             );
           }
         } else {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload Failed: ${response.body}')));
+          if (mounted)
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(content: Text('Upload Failed: ${response.body}')),
+            );
         }
       }
     } catch (e) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Connection Error')));
+      if (mounted)
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Connection Error')));
     }
     setState(() => _isUploading = false);
   }
@@ -167,25 +194,34 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
   String get _diffLabel {
     switch (_difficulty) {
-      case ChallengeDifficulty.beginner:     return 'Beginner';
-      case ChallengeDifficulty.intermediate: return 'Intermediate';
-      case ChallengeDifficulty.advanced:     return 'Advanced';
+      case ChallengeDifficulty.beginner:
+        return 'Beginner';
+      case ChallengeDifficulty.intermediate:
+        return 'Intermediate';
+      case ChallengeDifficulty.advanced:
+        return 'Advanced';
     }
   }
 
   Color get _diffColor {
     switch (_difficulty) {
-      case ChallengeDifficulty.beginner:     return const Color(0xFF3FBD7A);
-      case ChallengeDifficulty.intermediate: return const Color(0xFF3F7CF4);
-      case ChallengeDifficulty.advanced:     return const Color(0xFFB45FD4);
+      case ChallengeDifficulty.beginner:
+        return const Color(0xFF3FBD7A);
+      case ChallengeDifficulty.intermediate:
+        return const Color(0xFF3F7CF4);
+      case ChallengeDifficulty.advanced:
+        return const Color(0xFFB45FD4);
     }
   }
 
   Color get _diffBg {
     switch (_difficulty) {
-      case ChallengeDifficulty.beginner:     return const Color(0xFFDFF5E8);
-      case ChallengeDifficulty.intermediate: return const Color(0xFFE6EEFF);
-      case ChallengeDifficulty.advanced:     return const Color(0xFFF3E6FF);
+      case ChallengeDifficulty.beginner:
+        return const Color(0xFFDFF5E8);
+      case ChallengeDifficulty.intermediate:
+        return const Color(0xFFE6EEFF);
+      case ChallengeDifficulty.advanced:
+        return const Color(0xFFF3E6FF);
     }
   }
 
@@ -203,7 +239,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       body: DefaultTextStyle.merge(
         style: const TextStyle(decoration: TextDecoration.none),
         child: SafeArea(
-          top: false, 
+          top: false,
           bottom: true,
           child: Column(
             children: [
@@ -218,15 +254,15 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                         _buildChallengeInfoCard(),
                         const SizedBox(height: 16),
                       ],
-                      
+
                       if (!isReady) ...[
                         _buildLanguageBanner(),
                         const SizedBox(height: 14),
                       ],
-                      
+
                       // ── NEW CLEAN RECORD CARD ──
                       _buildRecordCard(),
-                      
+
                       const SizedBox(height: 40),
                     ],
                   ),
@@ -241,72 +277,100 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
   Widget _buildRecordCard() {
     final isRecording = _state == _PracticeState.recording;
-    
+
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.symmetric(vertical: 40, horizontal: 20),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(20),
-        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 15, offset: Offset(0, 5))],
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 15,
+            offset: Offset(0, 5),
+          ),
+        ],
       ),
       child: Column(
         children: [
           GestureDetector(
-            onTap: _isUploading ? null : () {
-              if (_state == _PracticeState.ready) {
-                _start(); // Starts the challenge
-              } else if (_state == _PracticeState.recording) {
-                _finishSession(); // User finished early! Analyze immediately.
-              }
-            },
-            child: _isUploading 
-              ? const CircleAvatar(
-                  radius: 50,
-                  backgroundColor: Color(0xFF3F7CF4),
-                  child: CircularProgressIndicator(color: Colors.white),
-                )
-              : CircleAvatar(
-                  radius: 50,
-                  backgroundColor: isRecording ? Colors.redAccent : const Color(0xFF3F7CF4),
-                  child: Icon(
-                    isRecording ? Icons.stop_rounded : Icons.mic, 
-                    color: Colors.white, 
-                    size: 40
+            onTap: _isUploading
+                ? null
+                : () {
+                    if (_state == _PracticeState.ready) {
+                      _start(); // Starts the challenge
+                    } else if (_state == _PracticeState.recording) {
+                      _finishSession(); // User finished early! Analyze immediately.
+                    }
+                  },
+            child: _isUploading
+                ? const CircleAvatar(
+                    radius: 50,
+                    backgroundColor: Color(0xFF3F7CF4),
+                    child: CircularProgressIndicator(color: Colors.white),
+                  )
+                : CircleAvatar(
+                    radius: 50,
+                    backgroundColor: isRecording
+                        ? Colors.redAccent
+                        : const Color(0xFF3F7CF4),
+                    child: Icon(
+                      isRecording ? Icons.stop_rounded : Icons.mic,
+                      color: Colors.white,
+                      size: 40,
+                    ),
                   ),
-                ),
           ),
           const SizedBox(height: 24),
           Text(
-            _state == _PracticeState.ready 
-              ? 'Ready to Record' 
-              : _isUploading 
-                  ? 'Analyzing Speech...' 
-                  : 'Recording Live...',
+            _state == _PracticeState.ready
+                ? 'Ready to Record'
+                : _isUploading
+                ? 'Analyzing Speech...'
+                : 'Recording Live...',
             style: TextStyle(
-              fontWeight: FontWeight.bold, 
-              fontSize: 16, 
-              color: isRecording ? Colors.redAccent : const Color(0xFF1A1A2E)
+              fontWeight: FontWeight.bold,
+              fontSize: 16,
+              color: isRecording ? Colors.redAccent : const Color(0xFF1A1A2E),
             ),
           ),
           const SizedBox(height: 12),
           Text(
             _fmt(_elapsedSeconds),
-            style: const TextStyle(fontSize: 48, fontWeight: FontWeight.bold, color: Color(0xFF3F7CF4)),
+            style: const TextStyle(
+              fontSize: 48,
+              fontWeight: FontWeight.bold,
+              color: Color(0xFF3F7CF4),
+            ),
           ),
           if (_state != _PracticeState.ready) ...[
             const SizedBox(height: 6),
-            const Text('Time Remaining', style: TextStyle(fontSize: 12, color: Colors.grey)),
+            const Text(
+              'Time Remaining',
+              style: TextStyle(fontSize: 12, color: Colors.grey),
+            ),
             const SizedBox(height: 2),
             Text(
               _fmt(_remainingSeconds),
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E)),
+              style: const TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF1A1A2E),
+              ),
             ),
           ],
-          
+
           if (isRecording && !_isUploading) ...[
             const SizedBox(height: 16),
-            const Text('Tap the stop button if you finish early.', style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+            const Text(
+              'Tap the stop button if you finish early.',
+              style: TextStyle(
+                color: Colors.grey,
+                fontSize: 12,
+                fontStyle: FontStyle.italic,
+              ),
+            ),
           ],
         ],
       ),
@@ -322,7 +386,11 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          Wrap(
+            spacing: 12,
+            runSpacing: 8,
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               GestureDetector(
                 onTap: () {
@@ -334,71 +402,109 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
                   children: [
                     Icon(Icons.chevron_left, color: Colors.white, size: 24),
                     SizedBox(width: 4),
-                    Text('Back', style: TextStyle(color: Colors.white, fontSize: 16)),
+                    Text(
+                      'Back',
+                      style: TextStyle(color: Colors.white, fontSize: 16),
+                    ),
                   ],
                 ),
               ),
-              const Spacer(),
               _buildLanguageToggle(),
             ],
           ),
           const SizedBox(height: 14),
-          const Text('Timed Challenge', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+          const Text(
+            'Timed Challenge',
+            style: TextStyle(
+              color: Colors.white,
+              fontSize: 24,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 4),
-          Text(widget.challenge['description'] ?? 'Test your skills', style: const TextStyle(color: Colors.white70, fontSize: 13)),
-          const SizedBox(height: 8), 
+          Text(
+            widget.challenge['description'] ?? 'Test your skills',
+            style: const TextStyle(color: Colors.white70, fontSize: 13),
+          ),
+          const SizedBox(height: 8),
         ],
       ),
     );
   }
 
   Widget _buildLanguageToggle() {
+    Widget languageOption(String label, String language, Color color) {
+      final selected = _selectedLanguage == language;
+      return GestureDetector(
+        onTap: _state == _PracticeState.recording
+            ? null
+            : () => setState(() => _selectedLanguage = language),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          decoration: BoxDecoration(
+            color: selected ? Colors.white : Colors.transparent,
+            borderRadius: BorderRadius.circular(16),
+            boxShadow: selected
+                ? [
+                    BoxShadow(
+                      color: Colors.black.withOpacity(0.1),
+                      blurRadius: 4,
+                      offset: const Offset(0, 2),
+                    ),
+                  ]
+                : [],
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: 12,
+              fontWeight: FontWeight.bold,
+              color: selected ? color : Colors.white70,
+            ),
+          ),
+        ),
+      );
+    }
+
     return Container(
-      decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.2),
+        borderRadius: BorderRadius.circular(20),
+      ),
       padding: const EdgeInsets.all(4),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          GestureDetector(
-            onTap: _state == _PracticeState.recording ? null : () => setState(() => _isEnglish = true),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: _isEnglish ? Colors.white : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: _isEnglish ? [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 4, offset: const Offset(0, 2))] : [],
-              ),
-              child: Text('EN', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: _isEnglish ? const Color(0xFF3F7CF4) : Colors.white70)),
-            ),
-          ),
-          GestureDetector(
-            onTap: _state == _PracticeState.recording ? null : () => setState(() => _isEnglish = false),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-              decoration: BoxDecoration(
-                color: !_isEnglish ? const Color(0xFFF5A623) : Colors.transparent,
-                borderRadius: BorderRadius.circular(16),
-                boxShadow: !_isEnglish ? [BoxShadow(color: const Color(0xFFF5A623).withOpacity(0.3), blurRadius: 4, offset: const Offset(0, 2))] : [],
-              ),
-              child: Text('FIL', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: !_isEnglish ? Colors.white : Colors.white70)),
-            ),
-          ),
+          languageOption('EN', 'English', const Color(0xFF3F7CF4)),
+          languageOption('FIL', 'Filipino', const Color(0xFFF5A623)),
+          languageOption('TAG', 'Taglish', const Color(0xFF8B5CF6)),
         ],
       ),
     );
   }
 
   Widget _buildLanguageBanner() {
+    final color = _selectedLanguage == 'English'
+        ? const Color(0xFF3F7CF4)
+        : _selectedLanguage == 'Filipino'
+        ? const Color(0xFFF5A623)
+        : const Color(0xFF8B5CF6);
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(Icons.language, size: 14, color: !_isEnglish ? const Color(0xFFF5A623) : const Color(0xFF3F7CF4)),
+        Icon(Icons.language, size: 14, color: color),
         const SizedBox(width: 6),
-        Text(
-          !_isEnglish ? 'Practicing in Filipino' : 'Practicing in English',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: !_isEnglish ? const Color(0xFFF5A623) : const Color(0xFF3F7CF4)),
+        Flexible(
+          child: Text(
+            'Practicing in $_selectedLanguage',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
         ),
       ],
     );
@@ -415,59 +521,132 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       decoration: BoxDecoration(
         color: const Color(0xFF3F7CF4),
         borderRadius: BorderRadius.circular(16),
-        boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+        boxShadow: const [
+          BoxShadow(
+            color: Colors.black26,
+            blurRadius: 10,
+            offset: Offset(0, 4),
+          ),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+          Text(
+            title,
+            style: const TextStyle(
+              color: Colors.white,
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
           const SizedBox(height: 8),
-          Row(
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _pill(
                 bg: Colors.white.withOpacity(0.20),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const Icon(Icons.access_time, color: Colors.white70, size: 12),
+                    const Icon(
+                      Icons.access_time,
+                      color: Colors.white70,
+                      size: 12,
+                    ),
                     const SizedBox(width: 4),
-                    Text(_durationLabel, style: const TextStyle(color: Colors.white, fontSize: 11)),
+                    Text(
+                      _durationLabel,
+                      style: const TextStyle(color: Colors.white, fontSize: 11),
+                    ),
                   ],
                 ),
               ),
-              const SizedBox(width: 8),
-              _pill(bg: _diffBg, child: Text(_diffLabel, style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: _diffColor))),
+              _pill(
+                bg: _diffBg,
+                child: Text(
+                  _diffLabel,
+                  style: TextStyle(
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    color: _diffColor,
+                  ),
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 14),
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(12),
+            ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Your Prompt:', style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1A1A2E))),
+                const Text(
+                  'Your Prompt:',
+                  style: TextStyle(
+                    fontSize: 13,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF1A1A2E),
+                  ),
+                ),
                 const SizedBox(height: 8),
-                Text(prompt, style: const TextStyle(fontSize: 13, color: Color(0xFF3A3A50), height: 1.5)),
+                Text(
+                  prompt,
+                  style: const TextStyle(
+                    fontSize: 13,
+                    color: Color(0xFF3A3A50),
+                    height: 1.5,
+                  ),
+                ),
               ],
             ),
           ),
           if (tips.isNotEmpty) ...[
             const SizedBox(height: 14),
-            const Text('Tips:', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-            const SizedBox(height: 6),
-            ...tips.map((tip) => Padding(
-              padding: const EdgeInsets.only(bottom: 5),
-              child: Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Padding(padding: EdgeInsets.only(top: 6), child: CircleAvatar(radius: 3, backgroundColor: Colors.white70)),
-                  const SizedBox(width: 8),
-                  Expanded(child: Text(tip.toString(), style: const TextStyle(color: Colors.white, fontSize: 13, height: 1.4))),
-                ],
+            const Text(
+              'Tips:',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
               ),
-            )),
+            ),
+            const SizedBox(height: 6),
+            ...tips.map(
+              (tip) => Padding(
+                padding: const EdgeInsets.only(bottom: 5),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Padding(
+                      padding: EdgeInsets.only(top: 6),
+                      child: CircleAvatar(
+                        radius: 3,
+                        backgroundColor: Colors.white70,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        tip.toString(),
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 13,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ],
         ],
       ),
@@ -477,7 +656,10 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   Widget _pill({required Color bg, required Widget child}) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: child,
     );
   }
