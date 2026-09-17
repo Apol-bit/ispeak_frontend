@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'learning_resources_page.dart';
 import '../config/api_config.dart';
 import '../config/responsive.dart';
+import '../services/api_client.dart';
 import 'profile_screen.dart';
 import 'result_page.dart';
 import 'script_practice_page.dart';
@@ -85,15 +85,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
       debugPrint(
         'Dashboard: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
       );
-      final statsRes = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'))
-          .timeout(const Duration(seconds: 10));
-      final historyRes = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}'))
-          .timeout(const Duration(seconds: 10));
-      final profileRes = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'))
-          .timeout(const Duration(seconds: 10));
+      final responses = await Future.wait([
+        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}')),
+        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}')),
+        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}')),
+      ]);
+      final statsRes = responses[0];
+      final historyRes = responses[1];
+      final profileRes = responses[2];
       debugPrint(
         'Dashboard: statsRes=${statsRes.statusCode}, historyRes=${historyRes.statusCode}, profileRes=${profileRes.statusCode}',
       );

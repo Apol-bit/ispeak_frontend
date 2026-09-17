@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart'; // Required for System UI controls
-import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'pages/dashboard_page.dart';
 import 'pages/progress_page.dart';
@@ -12,6 +11,10 @@ import 'pages/login_screen.dart';
 import 'theme/app_theme.dart';
 import 'transitions/page_transitions.dart';
 import 'config/api_config.dart';
+import 'services/api_client.dart';
+import 'services/auth_service.dart';
+
+final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,6 +37,14 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
+  ApiClient.onAuthenticationExpired = () async {
+    await AuthService.clearSession();
+    navigatorKey.currentState?.pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  };
+
   runApp(const MyApp());
 }
 
@@ -43,6 +54,7 @@ class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'iSpeak',
       theme: ThemeData(
@@ -61,7 +73,39 @@ class MyApp extends StatelessWidget {
           },
         ),
       ),
-      home: const SplashScreen(),
+      home: const SessionGate(),
+    );
+  }
+}
+
+class SessionGate extends StatefulWidget {
+  const SessionGate({super.key});
+
+  @override
+  State<SessionGate> createState() => _SessionGateState();
+}
+
+class _SessionGateState extends State<SessionGate> {
+  late final Future<Map<String, dynamic>?> _session;
+
+  @override
+  void initState() {
+    super.initState();
+    _session = AuthService.validateSession();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<Map<String, dynamic>?>(
+      future: _session,
+      builder: (context, snapshot) {
+        if (snapshot.connectionState != ConnectionState.done) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        }
+        final user = snapshot.data;
+        if (user == null) return const SplashScreen();
+        return MainPage(userId: user['id'].toString());
+      },
     );
   }
 }
@@ -108,8 +152,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
 
   Future<void> _checkIfStillActive() async {
     try {
-      final response = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/users/${widget.userId}'),
+      final response = await ApiClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'),
       );
 
       if (response.statusCode == 200) {
@@ -123,7 +167,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
     }
   }
 
-  void _forceLogout() {
+  Future<void> _forceLogout() async {
+    await AuthService.clearSession();
     if (!mounted) return;
     Navigator.pushAndRemoveUntil(
       context,

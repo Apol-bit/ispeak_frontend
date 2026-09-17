@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
@@ -90,9 +90,8 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
       setState(() => _isLoading = true);
 
       try {
-        final response = await http.put(
+        final response = await ApiClient.put(
           Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'),
-          headers: {'Content-Type': 'application/json'},
           body: jsonEncode({
             'firstName': _firstNameController.text.trim(),
             'lastName': _lastNameController.text.trim(),
@@ -126,7 +125,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('${e.toString().replaceAll("Exception: ", "")}'),
+            content: Text(e.toString().replaceAll("Exception: ", "")),
             backgroundColor: Colors.red,
             duration: const Duration(seconds: 4),
           ),
@@ -228,10 +227,12 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                               controller: _usernameController,
                               hintText: 'Choose a username',
                               validator: (value) {
-                                if (value == null || value.isEmpty)
+                                if (value == null || value.isEmpty) {
                                   return 'Please enter a username';
-                                if (value.length < 3)
+                                }
+                                if (value.length < 3) {
                                   return 'Username must be at least 3 characters';
+                                }
                                 return null;
                               },
                             ),
@@ -261,36 +262,60 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            LayoutBuilder(
-                              builder: (context, constraints) {
-                                final firstName = _buildNameField(
-                                  label: 'First Name',
-                                  controller: _firstNameController,
-                                );
-                                final lastName = _buildNameField(
-                                  label: 'Last Name',
-                                  controller: _lastNameController,
-                                );
-
-                                if (constraints.maxWidth < 280) {
-                                  return Column(
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
                                     children: [
-                                      firstName,
-                                      const SizedBox(height: 16),
-                                      lastName,
+                                      const Text(
+                                        'First Name',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      CustomTextField(
+                                        controller: _firstNameController,
+                                        hintText: 'First Name',
+                                        validator: (value) =>
+                                            value == null || value.isEmpty
+                                            ? 'Required'
+                                            : null,
+                                      ),
                                     ],
-                                  );
-                                }
-
-                                return Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Expanded(child: firstName),
-                                    const SizedBox(width: 12),
-                                    Expanded(child: lastName),
-                                  ],
-                                );
-                              },
+                                  ),
+                                ),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      const Text(
+                                        'Last Name',
+                                        style: TextStyle(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: Colors.black87,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 8),
+                                      CustomTextField(
+                                        controller: _lastNameController,
+                                        hintText: 'Last Name',
+                                        validator: (value) =>
+                                            value == null || value.isEmpty
+                                            ? 'Required'
+                                            : null,
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
                             ),
                             const SizedBox(height: 12),
                             Row(
@@ -390,7 +415,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                              value: _selectedGender,
+                              initialValue: _selectedGender,
                               hint: const Text('Select Gender'),
                               decoration: InputDecoration(
                                 filled: true,
@@ -448,7 +473,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             const SizedBox(height: 8),
                             DropdownButtonFormField<String>(
                               isExpanded: true,
-                              value: _selectedGradeLevel,
+                              initialValue: _selectedGradeLevel,
                               hint: const Text('Select Grade / Level'),
                               decoration: InputDecoration(
                                 filled: true,
@@ -573,32 +598,6 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildNameField({
-    required String label,
-    required TextEditingController controller,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: Colors.black87,
-          ),
-        ),
-        const SizedBox(height: 8),
-        CustomTextField(
-          controller: controller,
-          hintText: label,
-          validator: (value) =>
-              value == null || value.isEmpty ? 'Required' : null,
-        ),
-      ],
     );
   }
 }

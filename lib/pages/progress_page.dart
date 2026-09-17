@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../services/api_client.dart';
 import 'result_page.dart';
 import 'script_practice_page.dart';
 import 'time_challenge_page.dart';
@@ -158,7 +158,7 @@ class _ProgressPageState extends State<ProgressPage> {
         'Progress: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
       );
       final url = Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}');
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await ApiClient.get(url);
       debugPrint('Progress: response status=${response.statusCode}');
 
       if (response.statusCode == 200) {
@@ -170,7 +170,11 @@ class _ProgressPageState extends State<ProgressPage> {
             .where((s) => (s['language'] ?? 'English') == 'English')
             .toList();
         final List<dynamic> filipinoSessions = sessions
-            .where((s) => (s['language'] ?? 'English') == 'Filipino')
+            .where(
+              (s) =>
+                  (s['language'] ?? 'English') == 'Filipino' ||
+                  (s['language'] ?? 'English') == 'Taglish',
+            )
             .toList();
 
         // Compute per-language skill averages ---
@@ -464,7 +468,10 @@ class _ProgressPageState extends State<ProgressPage> {
                     width: double.infinity,
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
-                        colors: [accentColor, accentColor.withOpacity(0.8)],
+                        colors: [
+                          accentColor,
+                          accentColor.withValues(alpha: 0.8),
+                        ],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
                       ),
@@ -618,7 +625,7 @@ class _ProgressPageState extends State<ProgressPage> {
                                 },
                               ),
                             );
-                          }).toList(),
+                          }),
                       ],
                     ),
                   ),
@@ -637,7 +644,7 @@ class _ProgressPageState extends State<ProgressPage> {
       borderRadius: BorderRadius.circular(24),
       boxShadow: [
         BoxShadow(
-          color: Colors.black.withOpacity(0.04),
+          color: Colors.black.withValues(alpha: 0.04),
           blurRadius: 20,
           offset: const Offset(0, 8),
         ),
@@ -722,38 +729,47 @@ class _ProgressPageState extends State<ProgressPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _responsiveSectionHeader(
-              title: 'Skills Breakdown',
-              trailing: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(25),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Skills Breakdown',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _toggleBtn(
-                      'English',
-                      _isEnglishSelected,
-                      const Color(0xFF3F7CF4),
-                      () => setState(() {
-                        _isEnglishSelected = true;
-                        _updateChartForSelectedLanguage();
-                      }),
-                    ),
-                    _toggleBtn(
-                      'Filipino',
-                      !_isEnglishSelected,
-                      const Color(0xFFF5A623),
-                      () => setState(() {
-                        _isEnglishSelected = false;
-                        _updateChartForSelectedLanguage();
-                      }),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      _toggleBtn(
+                        'English',
+                        _isEnglishSelected,
+                        const Color(0xFF3F7CF4),
+                        () => setState(() {
+                          _isEnglishSelected = true;
+                          _updateChartForSelectedLanguage();
+                        }),
+                      ),
+                      _toggleBtn(
+                        'Filipino / Taglish',
+                        !_isEnglishSelected,
+                        const Color(0xFFF5A623),
+                        () => setState(() {
+                          _isEnglishSelected = false;
+                          _updateChartForSelectedLanguage();
+                        }),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
             const SizedBox(height: 20),
             Container(
@@ -771,7 +787,9 @@ class _ProgressPageState extends State<ProgressPage> {
                       Icon(Icons.stars_rounded, color: accentColor, size: 20),
                       const SizedBox(width: 8),
                       Text(
-                        isEnglish ? 'ENGLISH SCORE' : 'FILIPINO SCORE',
+                        isEnglish
+                            ? 'ENGLISH SCORE'
+                            : 'FILIPINO / TAGLISH SCORE',
                         style: TextStyle(
                           color: accentColor,
                           fontWeight: FontWeight.w800,
@@ -857,41 +875,48 @@ class _ProgressPageState extends State<ProgressPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _responsiveSectionHeader(
-              title: 'Performance Per Day',
-              trailing: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
-                  borderRadius: BorderRadius.circular(25),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Expanded(
+                  child: Text(
+                    'Performance Per Day',
+                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-                padding: const EdgeInsets.all(4),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _toggleBtn(
-                      'Feature',
-                      _isBarChart,
-                      accentColor,
-                      () => setState(() {
-                        _isBarChart = true;
-                        _tooltipDayIndex = null;
-                      }),
-                    ),
-                    _toggleBtn(
-                      'Ratings',
-                      !_isBarChart,
-                      accentColor,
-                      () => setState(() => _isBarChart = false),
-                    ),
-                  ],
+                const SizedBox(width: 8),
+                Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade100,
+                    borderRadius: BorderRadius.circular(25),
+                  ),
+                  padding: const EdgeInsets.all(4),
+                  child: Row(
+                    children: [
+                      _toggleBtn(
+                        'Feature',
+                        _isBarChart,
+                        accentColor,
+                        () => setState(() {
+                          _isBarChart = true;
+                          _tooltipDayIndex = null;
+                        }),
+                      ),
+                      _toggleBtn(
+                        'Ratings',
+                        !_isBarChart,
+                        accentColor,
+                        () => setState(() => _isBarChart = false),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
             if (!_isBarChart) ...[
               const SizedBox(height: 16),
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
+              Row(
                 children: [
                   _metricChip(
                     'Pace',
@@ -899,12 +924,14 @@ class _ProgressPageState extends State<ProgressPage> {
                     _paceColor,
                     () => setState(() => _showPace = !_showPace),
                   ),
+                  const SizedBox(width: 8),
                   _metricChip(
                     'Clarity',
                     _showClarity,
                     _clarityColor,
                     () => setState(() => _showClarity = !_showClarity),
                   ),
+                  const SizedBox(width: 8),
                   _metricChip(
                     'Energy',
                     _showEnergy,
@@ -969,7 +996,7 @@ class _ProgressPageState extends State<ProgressPage> {
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                     blurRadius: 6,
                     offset: const Offset(0, 3),
                   ),
@@ -988,35 +1015,6 @@ class _ProgressPageState extends State<ProgressPage> {
     );
   }
 
-  Widget _responsiveSectionHeader({
-    required String title,
-    required Widget trailing,
-  }) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final titleWidget = Text(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-        );
-
-        if (constraints.maxWidth < 340) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [titleWidget, const SizedBox(height: 12), trailing],
-          );
-        }
-
-        return Row(
-          children: [
-            Expanded(child: titleWidget),
-            const SizedBox(width: 8),
-            trailing,
-          ],
-        );
-      },
-    );
-  }
-
   Widget _styledTooltip({required String message, required Widget child}) {
     return Tooltip(
       message: message,
@@ -1028,7 +1026,7 @@ class _ProgressPageState extends State<ProgressPage> {
         borderRadius: BorderRadius.circular(10),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.2),
+            color: Colors.black.withValues(alpha: 0.2),
             blurRadius: 8,
             offset: const Offset(0, 4),
           ),
@@ -1110,10 +1108,12 @@ class _ProgressPageState extends State<ProgressPage> {
   Widget _buildLineChart() {
     final series = <_MetricSeries>[];
     if (_showPace) series.add(_MetricSeries('Pace', _paceScores, _paceColor));
-    if (_showClarity)
+    if (_showClarity) {
       series.add(_MetricSeries('Clarity', _clarityScores, _clarityColor));
-    if (_showEnergy)
+    }
+    if (_showEnergy) {
       series.add(_MetricSeries('Energy', _energyScores, _energyColor));
+    }
 
     return Row(
       children: [
@@ -1166,8 +1166,9 @@ class _ProgressPageState extends State<ProgressPage> {
                     ...series.map((m) {
                       final pts = <MapEntry<int, double>>[];
                       for (int i = 0; i < m.scores.length; i++) {
-                        if (m.scores[i] != null)
+                        if (m.scores[i] != null) {
                           pts.add(MapEntry(i, m.scores[i]!));
+                        }
                       }
                       final offsets = pts
                           .map(
@@ -1197,8 +1198,9 @@ class _ProgressPageState extends State<ProgressPage> {
                     ...series.map((m) {
                       final pts = <MapEntry<int, double>>[];
                       for (int i = 0; i < m.scores.length; i++) {
-                        if (m.scores[i] != null)
+                        if (m.scores[i] != null) {
                           pts.add(MapEntry(i, m.scores[i]!));
+                        }
                       }
                       return Positioned(
                         top: 0,
@@ -1227,7 +1229,9 @@ class _ProgressPageState extends State<ProgressPage> {
                                   ),
                                   boxShadow: [
                                     BoxShadow(
-                                      color: Colors.black.withOpacity(0.15),
+                                      color: Colors.black.withValues(
+                                        alpha: 0.15,
+                                      ),
                                       blurRadius: 4,
                                     ),
                                   ],
@@ -1289,7 +1293,9 @@ class _ProgressPageState extends State<ProgressPage> {
                                     borderRadius: BorderRadius.circular(12),
                                     boxShadow: [
                                       BoxShadow(
-                                        color: Colors.black.withOpacity(0.25),
+                                        color: Colors.black.withValues(
+                                          alpha: 0.25,
+                                        ),
                                         blurRadius: 10,
                                         offset: const Offset(0, 4),
                                       ),
@@ -1427,7 +1433,7 @@ class _ProgressPageState extends State<ProgressPage> {
           boxShadow: active
               ? [
                   BoxShadow(
-                    color: activeColor.withOpacity(0.3),
+                    color: activeColor.withValues(alpha: 0.3),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),
@@ -1495,7 +1501,7 @@ class _ProgressPageState extends State<ProgressPage> {
             borderRadius: BorderRadius.circular(10),
             child: LinearProgressIndicator(
               value: value,
-              backgroundColor: accentColor.withOpacity(0.1),
+              backgroundColor: accentColor.withValues(alpha: 0.1),
               valueColor: AlwaysStoppedAnimation<Color>(accentColor),
               minHeight: 10,
             ),
@@ -1561,7 +1567,7 @@ class _ProgressPageState extends State<ProgressPage> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(0.1),
+                color: accentColor.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Text(

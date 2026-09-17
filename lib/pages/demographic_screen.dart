@@ -1,10 +1,10 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
+import '../services/api_client.dart';
 import '../theme/app_theme.dart';
 import '../transitions/page_transitions.dart';
-import 'login_screen.dart';
+import '../main.dart';
 
 class DemographicScreen extends StatefulWidget {
   final String userId;
@@ -106,9 +106,8 @@ class _DemographicScreenState extends State<DemographicScreen>
     final initialLevel = _computeInitialLevel();
 
     try {
-      final response = await http.patch(
+      final response = await ApiClient.patch(
         Uri.parse('${ApiConfig.baseUrl}/users/${widget.userId}/demographics'),
-        headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'age': int.tryParse(_ageController.text.trim()),
           'gender': _selectedGender,
@@ -142,7 +141,7 @@ class _DemographicScreenState extends State<DemographicScreen>
   }
 
   void _showSuccessAndNavigate(String level) {
-    // Show a brief level reveal dialog, then go to login
+    // Show a brief level reveal dialog, then continue with the authenticated session.
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -151,7 +150,7 @@ class _DemographicScreenState extends State<DemographicScreen>
         onContinue: () {
           Navigator.of(context).pop(); // close dialog
           Navigator.of(context).pushAndRemoveUntil(
-            ModernPageRoute(page: const LoginScreen()),
+            ModernPageRoute(page: MainPage(userId: widget.userId)),
             (route) => false,
           );
         },

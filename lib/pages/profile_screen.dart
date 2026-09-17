@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
 import '../config/api_config.dart';
 import '../theme/app_theme.dart';
 import 'editprofile_screen.dart';
 import 'login_screen.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import '../services/api_client.dart';
+import '../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -52,12 +52,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
       debugPrint(
         'Profile: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
       );
-      final userRes = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'))
-          .timeout(const Duration(seconds: 10));
-      final statsRes = await http
-          .get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'))
-          .timeout(const Duration(seconds: 10));
+      final userRes = await ApiClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'),
+      );
+      final statsRes = await ApiClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'),
+      );
       debugPrint(
         'Profile: userRes=${userRes.statusCode}, statsRes=${statsRes.statusCode}',
       );
@@ -192,8 +192,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     if (confirmed != true) return;
 
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.clear();
+    await AuthService.clearSession();
 
     if (!mounted) return;
 

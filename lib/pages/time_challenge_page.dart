@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/api_config.dart';
+import '../services/api_client.dart';
 import 'result_page.dart'; // Unified Result Page
 
 enum ChallengeDifficulty { beginner, intermediate, advanced }
@@ -143,8 +144,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
           await http.MultipartFile.fromPath('audio', finalPath),
         );
 
-        var streamedResponse = await request.send();
-        var response = await http.Response.fromStream(streamedResponse);
+        var response = await ApiClient.sendMultipart(request);
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
@@ -164,17 +164,19 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             );
           }
         } else {
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Upload Failed: ${response.body}')),
             );
+          }
         }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Connection Error')));
+      }
     }
     setState(() => _isUploading = false);
   }
@@ -448,7 +450,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             boxShadow: selected
                 ? [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
+                      color: Colors.black.withValues(alpha: 0.1),
                       blurRadius: 4,
                       offset: const Offset(0, 2),
                     ),
@@ -469,7 +471,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
     return Container(
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.2),
+        color: Colors.white.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(20),
       ),
       padding: const EdgeInsets.all(4),
@@ -547,7 +549,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               _pill(
-                bg: Colors.white.withOpacity(0.20),
+                bg: Colors.white.withValues(alpha: 0.20),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

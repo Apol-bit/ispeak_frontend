@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:ispeak/config/api_config.dart';
+import 'package:ispeak/services/api_client.dart';
 import 'package:ispeak/pages/time_challenge_page.dart';
 import 'package:ispeak/pages/script_practice_page.dart';
 
@@ -42,8 +42,8 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     setState(() => _isLoading = true);
     try {
       // Fetch user profile to get their current level
-      final profileRes = await http.get(
-        Uri.parse('${ApiConfig.baseUrl}/users/${widget.userId}'),
+      final profileRes = await ApiClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'),
       );
       if (profileRes.statusCode == 200) {
         final profileData = json.decode(profileRes.body);
@@ -52,7 +52,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
       }
 
       final url = Uri.parse('${ApiConfig.baseUrl}/resources');
-      final response = await http.get(url);
+      final response = await ApiClient.get(url);
 
       if (response.statusCode == 200) {
         final List<dynamic> allResources = json.decode(response.body);
@@ -67,6 +67,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           }).toList();
         }
 
+        if (!mounted) return;
         setState(() {
           _scripts = filtered(
             allResources.where((r) => r['type'] == 'Script').toList(),
@@ -80,11 +81,13 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           _isLoading = false;
         });
       } else {
-        print('Failed to load resources. Status: ${response.statusCode}');
+        debugPrint('Failed to load resources. Status: ${response.statusCode}');
+        if (!mounted) return;
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error connecting to backend: $e');
+      debugPrint('Error connecting to backend: $e');
+      if (!mounted) return;
       setState(() => _isLoading = false);
     }
   }

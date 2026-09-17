@@ -1,13 +1,12 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import '../config/api_config.dart';
 import '../config/responsive.dart';
+import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
 import '../widgets/custom_textfield.dart';
 import '../transitions/page_transitions.dart';
 import 'demographic_screen.dart';
+import 'terms_conditions_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -57,21 +56,15 @@ class _SignupScreenState extends State<SignupScreen> {
       setState(() => _isLoading = true);
 
       try {
-        final response = await http.post(
-          Uri.parse('${ApiConfig.baseUrl}/signup'),
-          headers: {'Content-Type': 'application/json'},
-          body: jsonEncode({
-            'firstName': _firstNameController.text.trim(),
-            'lastName': _lastNameController.text.trim(),
-            'username': _usernameController.text.trim(),
-            'email': _emailController.text.trim(),
-            'password': _passwordController.text,
-          }),
+        final data = await AuthService().signup(
+          firstName: _firstNameController.text.trim(),
+          lastName: _lastNameController.text.trim(),
+          username: _usernameController.text.trim(),
+          email: _emailController.text.trim(),
+          password: _passwordController.text,
         );
 
-        final data = jsonDecode(response.body);
-
-        if (response.statusCode == 201) {
+        if (data['success'] == true) {
           if (!mounted) return;
           // Extract the newly created userId from the response
           final String newUserId = data['user']?['_id'] ?? data['userId'] ?? '';
@@ -123,6 +116,16 @@ class _SignupScreenState extends State<SignupScreen> {
 
   void _goToLogin() {
     Navigator.pop(context);
+  }
+
+  Future<void> _openTermsAndConditions() async {
+    final accepted = await Navigator.of(context).push<bool>(
+      ModernPageRoute(page: TermsConditionsScreen(isAccepted: _agreeToTerms)),
+    );
+
+    if (accepted != null && mounted) {
+      setState(() => _agreeToTerms = accepted);
+    }
   }
 
   @override
@@ -254,10 +257,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           controller: _usernameController,
                           hintText: 'Choose a username',
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Please enter a username';
-                            if (value.length < 3)
+                            }
+                            if (value.length < 3) {
                               return 'Must be at least 3 characters';
+                            }
                             return null;
                           },
                         ),
@@ -278,10 +283,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           hintText: 'Enter your email',
                           keyboardType: TextInputType.emailAddress,
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Please enter your email';
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value))
+                            }
+                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
                               return 'Please enter a valid email';
+                            }
                             return null;
                           },
                         ),
@@ -302,10 +309,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           hintText: 'Enter your password',
                           obscureText: !_isPasswordVisible,
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Please enter a password';
-                            if (value.length < 6)
-                              return 'Must be at least 6 characters';
+                            }
+                            if (value.length < 8) {
+                              return 'Must be at least 8 characters';
+                            }
                             return null;
                           },
                           suffixIcon: GestureDetector(
@@ -337,10 +346,12 @@ class _SignupScreenState extends State<SignupScreen> {
                           hintText: 'Confirm your password',
                           obscureText: !_isConfirmPasswordVisible,
                           validator: (value) {
-                            if (value == null || value.isEmpty)
+                            if (value == null || value.isEmpty) {
                               return 'Please confirm your password';
-                            if (value != _passwordController.text)
+                            }
+                            if (value != _passwordController.text) {
                               return 'Passwords do not match';
+                            }
                             return null;
                           },
                           suffixIcon: GestureDetector(
@@ -360,10 +371,11 @@ class _SignupScreenState extends State<SignupScreen> {
                         SizedBox(height: r.h(20)),
 
                         Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
                           children: [
                             SizedBox(
-                              width: r.w(20),
-                              height: r.w(20),
+                              width: 24,
+                              height: 24,
                               child: Checkbox(
                                 value: _agreeToTerms,
                                 onChanged: (value) => setState(
@@ -377,31 +389,48 @@ class _SignupScreenState extends State<SignupScreen> {
                             ),
                             SizedBox(width: r.w(12)),
                             Expanded(
-                              child: GestureDetector(
-                                onTap: () => setState(
-                                  () => _agreeToTerms = !_agreeToTerms,
-                                ),
-                                child: RichText(
-                                  text: TextSpan(
-                                    children: [
-                                      TextSpan(
-                                        text: 'I agree to the ',
+                              child: Wrap(
+                                crossAxisAlignment: WrapCrossAlignment.center,
+                                children: [
+                                  InkWell(
+                                    onTap: () => setState(
+                                      () => _agreeToTerms = !_agreeToTerms,
+                                    ),
+                                    borderRadius: r.radius(4),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        'I agree to the ',
                                         style: TextStyle(
                                           fontSize: r.sp(12),
                                           color: Colors.grey[600],
                                         ),
                                       ),
-                                      TextSpan(
-                                        text: 'Terms & Conditions',
+                                    ),
+                                  ),
+                                  InkWell(
+                                    onTap: _openTermsAndConditions,
+                                    borderRadius: r.radius(4),
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        vertical: 8,
+                                      ),
+                                      child: Text(
+                                        'Terms & Conditions',
                                         style: TextStyle(
                                           fontSize: r.sp(12),
                                           color: AppTheme.primaryColor,
                                           fontWeight: FontWeight.w600,
+                                          decoration: TextDecoration.underline,
+                                          decorationColor:
+                                              AppTheme.primaryColor,
                                         ),
                                       ),
-                                    ],
+                                    ),
                                   ),
-                                ),
+                                ],
                               ),
                             ),
                           ],

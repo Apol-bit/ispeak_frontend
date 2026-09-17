@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
-import 'package:http/http.dart' as http;
 import 'package:ispeak/config/api_config.dart';
 import 'package:ispeak/pages/time_challenge_page.dart';
+import 'package:ispeak/services/api_client.dart';
 
 enum _Tab { scripts, challenges, guidedTasks }
 
@@ -36,7 +36,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
     setState(() => _isLoading = true);
     try {
       final url = Uri.parse('${ApiConfig.baseUrl}/resources');
-      final response = await http.get(url);
+      final response = await ApiClient.get(url);
 
       if (response.statusCode == 200) {
         final List<dynamic> allResources = json.decode(response.body);
@@ -52,11 +52,11 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           _isLoading = false;
         });
       } else {
-        print('Failed to load resources. Status: ${response.statusCode}');
+        debugPrint('Failed to load resources. Status: ${response.statusCode}');
         setState(() => _isLoading = false);
       }
     } catch (e) {
-      print('Error connecting to backend: $e');
+      debugPrint('Error connecting to backend: $e');
       setState(() => _isLoading = false);
     }
   }
@@ -245,7 +245,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           language: scriptData['language'] ?? 'English',
           onTap: () {
             // TODO: Connect this to ScriptDetailPage later
-            print("Tapped script: ${scriptData['title']}");
+            debugPrint("Tapped script: ${scriptData['title']}");
           },
         ),
       );
@@ -270,7 +270,7 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
               : '120-150 WPM',
           onTap: () {
             // TODO: Connect this to TimedChallengePage later
-            print("Tapped challenge: ${challengeData['title']}");
+            debugPrint("Tapped challenge: ${challengeData['title']}");
           },
         ),
       );
@@ -831,7 +831,7 @@ class GuidedTaskDetailPage extends StatelessWidget {
         borderRadius: BorderRadius.circular(14),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.06),
+            color: Colors.black.withValues(alpha: 0.06),
             blurRadius: 6,
             offset: const Offset(0, 2),
           ),

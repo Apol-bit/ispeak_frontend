@@ -44,6 +44,7 @@ class _LoginScreenState extends State<LoginScreen> {
           _passwordController.text.trim(),
         );
 
+        if (!mounted) return;
         setState(() => _isLoading = false);
 
         // Successful Login (Status is Active)
@@ -74,6 +75,7 @@ class _LoginScreenState extends State<LoginScreen> {
           }
         }
       } catch (e) {
+        if (!mounted) return;
         setState(() => _isLoading = false);
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
@@ -149,7 +151,7 @@ class _LoginScreenState extends State<LoginScreen> {
                     borderRadius: r.radius(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.08),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 12,
                         offset: const Offset(0, 4),
                       ),

@@ -218,7 +218,7 @@ class ResultPage extends StatelessWidget {
                                 vertical: 8,
                               ),
                               decoration: BoxDecoration(
-                                color: overallColor.withOpacity(0.15),
+                                color: overallColor.withValues(alpha: 0.15),
                                 borderRadius: BorderRadius.circular(20),
                               ),
                               child: Text(
@@ -374,7 +374,7 @@ class ResultPage extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 20,
-                backgroundColor: scoreColor.withOpacity(0.15),
+                backgroundColor: scoreColor.withValues(alpha: 0.15),
                 child: Icon(icon, color: scoreColor, size: 20),
               ),
               const SizedBox(width: 12),

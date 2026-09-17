@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:record/record.dart';
 import 'package:path_provider/path_provider.dart';
 import '../config/api_config.dart';
+import '../services/api_client.dart';
 import 'result_page.dart'; // Unified Result Page
 
 class ScriptDetailPage extends StatelessWidget {
@@ -351,8 +352,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
           await http.MultipartFile.fromPath('audio', finalPath),
         );
 
-        var streamedResponse = await request.send();
-        var response = await http.Response.fromStream(streamedResponse);
+        var response = await ApiClient.sendMultipart(request);
 
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
@@ -372,17 +372,19 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
             );
           }
         } else {
-          if (mounted)
+          if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(content: Text('Upload Failed: ${response.body}')),
             );
+          }
         }
       }
     } catch (e) {
-      if (mounted)
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('Connection Error')));
+      }
     }
     setState(() => _isUploading = false);
   }
@@ -453,7 +455,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 8)],
         border: isActive
             ? Border.all(
-                color: const Color(0xFF3F7CF4).withOpacity(0.4),
+                color: const Color(0xFF3F7CF4).withValues(alpha: 0.4),
                 width: 2,
               )
             : null,
@@ -554,15 +556,15 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                     decoration: BoxDecoration(
                       border: Border(
                         top: BorderSide(
-                          color: const Color(0xFF3F7CF4).withOpacity(0.4),
+                          color: const Color(0xFF3F7CF4).withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                         bottom: BorderSide(
-                          color: const Color(0xFF3F7CF4).withOpacity(0.4),
+                          color: const Color(0xFF3F7CF4).withValues(alpha: 0.4),
                           width: 1.5,
                         ),
                       ),
-                      color: const Color(0xFF3F7CF4).withOpacity(0.05),
+                      color: const Color(0xFF3F7CF4).withValues(alpha: 0.05),
                     ),
                   ),
                 ),
@@ -573,7 +575,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                 left: 0,
                 child: Icon(
                   Icons.arrow_right,
-                  color: const Color(0xFF3F7CF4).withOpacity(0.8),
+                  color: const Color(0xFF3F7CF4).withValues(alpha: 0.8),
                   size: 30,
                 ),
               ),
@@ -582,7 +584,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                 right: 0,
                 child: Icon(
                   Icons.arrow_left,
-                  color: const Color(0xFF3F7CF4).withOpacity(0.8),
+                  color: const Color(0xFF3F7CF4).withValues(alpha: 0.8),
                   size: 30,
                 ),
               ),
@@ -612,7 +614,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
               final rateBadge = Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF3F7CF4).withOpacity(0.1),
+                  color: const Color(0xFF3F7CF4).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
@@ -687,10 +689,11 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
                 : () {
                     if (_status == PracticeStatus.ready) {
                       _start();
-                    } else if (_status == PracticeStatus.recording)
+                    } else if (_status == PracticeStatus.recording) {
                       _pause();
-                    else
+                    } else {
                       _start();
+                    }
                   },
             child: CircleAvatar(
               radius: 50,

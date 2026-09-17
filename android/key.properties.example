@@ -1,0 +1,7 @@
+# Copy this file to android/key.properties. Never commit the real file or keystore.
+storePassword=REPLACE_WITH_SECRET
+keyPassword=REPLACE_WITH_SECRET
+keyAlias=REPLACE_WITH_ALIAS
+# Use an absolute path with forward slashes on Windows, for example D:/private/upload.jks.
+# Relative paths resolve from android/app, not from this properties file.
+storeFile=REPLACE_WITH_ABSOLUTE_KEYSTORE_PATH
