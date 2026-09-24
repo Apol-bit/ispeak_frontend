@@ -6,6 +6,18 @@ import 'package:http/http.dart' as http;
 import 'auth_service.dart';
 
 class ApiClient {
+  static String errorMessage(http.Response response) {
+    try {
+      final data = jsonDecode(response.body);
+      if (data is Map && data['message'] is String) {
+        return data['message'] as String;
+      }
+    } catch (_) {
+      // Non-JSON gateway errors must not be shown as raw HTML or diagnostics.
+    }
+    return 'The recording could not be analyzed. Please try again.';
+  }
+
   static const requestTimeout = Duration(seconds: 15);
   static const uploadTimeout = Duration(minutes: 5);
   static Future<void> Function()? onAuthenticationExpired;
@@ -20,32 +32,34 @@ class ApiClient {
   }
 
   static Future<http.Response> get(Uri url) async => _handle(
-        await http.get(url, headers: await headers()).timeout(requestTimeout),
-      );
+    await http.get(url, headers: await headers()).timeout(requestTimeout),
+  );
 
   static Future<http.Response> post(Uri url, {Object? body}) async => _handle(
-        await http
-            .post(url, headers: await headers(json: true), body: body)
-            .timeout(requestTimeout),
-      );
+    await http
+        .post(url, headers: await headers(json: true), body: body)
+        .timeout(requestTimeout),
+  );
 
   static Future<http.Response> put(Uri url, {Object? body}) async => _handle(
-        await http
-            .put(url, headers: await headers(json: true), body: body)
-            .timeout(requestTimeout),
-      );
+    await http
+        .put(url, headers: await headers(json: true), body: body)
+        .timeout(requestTimeout),
+  );
 
   static Future<http.Response> patch(Uri url, {Object? body}) async => _handle(
-        await http
-            .patch(url, headers: await headers(json: true), body: body)
-            .timeout(requestTimeout),
-      );
+    await http
+        .patch(url, headers: await headers(json: true), body: body)
+        .timeout(requestTimeout),
+  );
 
   static Future<http.Response> delete(Uri url) async => _handle(
-        await http.delete(url, headers: await headers()).timeout(requestTimeout),
-      );
+    await http.delete(url, headers: await headers()).timeout(requestTimeout),
+  );
 
-  static Future<http.Response> sendMultipart(http.MultipartRequest request) async {
+  static Future<http.Response> sendMultipart(
+    http.MultipartRequest request,
+  ) async {
     request.headers.addAll(await headers());
     final streamed = await request.send().timeout(uploadTimeout);
     return _handle(await http.Response.fromStream(streamed));

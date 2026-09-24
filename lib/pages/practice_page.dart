@@ -380,7 +380,7 @@ class _PracticePageState extends State<PracticePage> {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
-                            content: Text('Upload Failed: ${response.body}'),
+                            content: Text(ApiClient.errorMessage(response)),
                           ),
                         );
                       }

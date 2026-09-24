@@ -166,7 +166,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         } else {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Upload Failed: ${response.body}')),
+              SnackBar(content: Text(ApiClient.errorMessage(response))),
             );
           }
         }

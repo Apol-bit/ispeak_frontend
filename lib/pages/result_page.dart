@@ -22,48 +22,39 @@ class ResultPage extends StatelessWidget {
   }
 
   String _getScoreLabel(num score) {
-    if (score == 0) return 'No Speech Detected 🔇';
+    if (score == 0) return 'Needs Work';
     if (score >= 90) return 'Excellent 🎉';
     if (score >= 75) return 'Good 👍';
     if (score >= 60) return 'Fair 😐';
     return 'Needs Work 📈';
   }
 
-  // DYNAMIC FEEDBACK HELPERS
-  String _getPaceFeedback(int score, int wpm) {
-    if (score == 0) {
-      return 'Audio was too quiet or short to measure pace. Please try again.';
-    }
-    if (wpm < 120) return 'Pacing is a bit slow. Try to speak a little faster.';
-    if (wpm > 150) return 'Pacing is too fast. Try to slow down and breathe.';
-    return 'Excellent pacing! Try to maintain this consistency.';
+  String _feedback(String metric, String fallback) {
+    final feedback = sessionData?['analysisFeedback'];
+    final value = feedback is Map ? feedback[metric] : null;
+    return value is String && value.trim().isNotEmpty ? value : fallback;
   }
+
+  String _getPaceFeedback(int score, int wpm) => _feedback(
+    'pace',
+    'Recorded pace: $wpm words per minute. Detailed findings are unavailable for this saved session.',
+  );
 
   String _getClarityFeedback(
     int score,
     int fillers,
-    bool fillerAnalysisAvailable,
-  ) {
-    if (score == 0) return 'Could not detect any words to analyze for clarity.';
-    if (!fillerAnalysisAvailable) {
-      return 'Filler-word analysis was unavailable for this session.';
-    }
-    if (fillers == 0) return 'Perfect! No filler words detected.';
-    if (fillers <= 3) return 'Minimal filler words. Keep it up.';
-    if (fillers <= 8) {
-      return 'Moderate filler words. Try to pause instead of saying "um".';
-    }
-    return 'High filler word usage. Practice speaking with fewer hesitations.';
-  }
+    bool available,
+  ) => _feedback(
+    'clarity',
+    available
+        ? '$fillers filler spans were detected. Detailed clarity findings are unavailable for this saved session.'
+        : 'Filler-word analysis was unavailable for this session.',
+  );
 
-  String _getEnergyFeedback(int score) {
-    if (score == 0) {
-      return 'No vocal energy detected. Please speak closer to the mic.';
-    }
-    if (score >= 80) return 'Great vocal intensity and consistent volume!';
-    if (score >= 60) return 'Good volume level. Keep it up.';
-    return 'Volume is a bit low. Try to speak louder and maintain consistent intensity.';
-  }
+  String _getEnergyFeedback(int score) => _feedback(
+    'energy',
+    'Detailed energy and pitch findings are unavailable for this saved session.',
+  );
 
   // Format date and time from ISO string
   String _formatDateTime(String? isoDate) {
@@ -115,6 +106,39 @@ class ResultPage extends StatelessWidget {
     final int clarityScore = (data['clarityScore'] ?? 0).toInt();
     final int energyScore = (data['energyScore'] ?? 0).toInt();
     final String createdAt = data['createdAt'] ?? '';
+    final availability = data['analysisAvailability'];
+    final isPartial =
+        availability is! Map ||
+        availability['pitch'] != true ||
+        availability['pronunciation'] != true ||
+        availability['fillers'] != true;
+    final transcript = data['transcription']?.toString().trim() ?? '';
+    final invalidRecording =
+        data['analysisValid'] == false ||
+        (data['wpmScore'] as num? ?? 0) <= 0 ||
+        transcript.isEmpty ||
+        transcript == 'No transcription available.';
+    if (invalidRecording) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Recording not evaluated')),
+        body: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              const Text(
+                'This recording does not contain enough usable speech for a reliable assessment. Please record a short sentence and try again.',
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(
+                onPressed: onPracticeAgain ?? onBackToHome,
+                child: const Text('Practice Again'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
     final Color overallColor = _getScoreColor(overallScore);
 
@@ -211,6 +235,21 @@ class ResultPage extends StatelessWidget {
                                 fontSize: 16,
                               ),
                             ),
+                            if (isPartial)
+                              const Padding(
+                                padding: EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                child: Text(
+                                  'Partial assessment: some analysis components are unavailable.',
+                                  textAlign: TextAlign.center,
+                                  style: TextStyle(
+                                    color: Colors.grey,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ),
                             const SizedBox(height: 16),
                             Container(
                               padding: const EdgeInsets.symmetric(
