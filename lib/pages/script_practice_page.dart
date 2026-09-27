@@ -1,3 +1,6 @@
+import '../services/temporary_recording.dart';
+import '../widgets/resource_access_check.dart';
+import '../widgets/fixed_back_layout.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -12,11 +15,13 @@ import 'result_page.dart'; // Unified Result Page
 class ScriptDetailPage extends StatelessWidget {
   final dynamic script;
   final String userId;
+  final VoidCallback? onBackToHome;
 
   const ScriptDetailPage({
     super.key,
     required this.script,
     required this.userId,
+    this.onBackToHome,
   });
 
   @override
@@ -33,85 +38,91 @@ class ScriptDetailPage extends StatelessWidget {
       ), // Matched PracticePage background
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      'Full Script',
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: Color(0xFF1A1A2E),
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    Container(
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(14),
-                        boxShadow: const [
-                          BoxShadow(color: Colors.black12, blurRadius: 6),
-                        ],
-                      ),
-                      child: Text(
-                        fullContent,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          height: 1.7,
-                          color: Colors.black87,
+        child: FixedBackLayout(
+          onBack: null,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(context),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Full Script',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          fontSize: 15,
+                          color: Color(0xFF1A1A2E),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 20),
-                    _buildTipsSection(),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: double.infinity,
-                      height: 52,
-                      child: ElevatedButton.icon(
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: const Color(0xFF3F7CF4),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(30),
-                          ),
-                          elevation: 0,
-                        ),
-                        icon: const Icon(
-                          Icons.mic,
+                      const SizedBox(height: 12),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
                           color: Colors.white,
-                          size: 18,
+                          borderRadius: BorderRadius.circular(14),
+                          boxShadow: const [
+                            BoxShadow(color: Colors.black12, blurRadius: 6),
+                          ],
                         ),
-                        label: const Text(
-                          'Practice with this Script',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
+                        child: Text(
+                          fullContent,
+                          style: const TextStyle(
+                            fontSize: 14,
+                            height: 1.7,
+                            color: Colors.black87,
                           ),
                         ),
-                        onPressed: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => ScriptPracticePage(
-                              script: script,
-                              userId: userId,
+                      ),
+                      const SizedBox(height: 20),
+                      _buildTipsSection(),
+                      const SizedBox(height: 28),
+                      SizedBox(
+                        width: double.infinity,
+                        height: 52,
+                        child: ElevatedButton.icon(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: const Color(0xFF3F7CF4),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
+                            ),
+                            elevation: 0,
+                          ),
+                          icon: const Icon(
+                            Icons.mic,
+                            color: Colors.white,
+                            size: 18,
+                          ),
+                          label: const Text(
+                            'Practice with this Script',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 15,
+                            ),
+                          ),
+                          onPressed: () => Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (_) => ScriptPracticePage(
+                                script: script,
+                                userId: userId,
+                                onBackToHome: onBackToHome,
+                              ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -122,7 +133,7 @@ class ScriptDetailPage extends StatelessWidget {
     final duration = '${script['estimatedMinutes'] ?? 0} min';
     final level = script['difficulty'] ?? 'Beginner';
     final language = script['language'] ?? 'English';
-    final double topPadding = MediaQuery.of(context).padding.top;
+    const double topPadding = 0;
 
     return Container(
       width: double.infinity,
@@ -131,19 +142,6 @@ class ScriptDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, color: Colors.white, size: 20),
-                Text(
-                  'Back',
-                  style: TextStyle(color: Colors.white, fontSize: 14),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 12),
           Text(
             title,
@@ -210,11 +208,13 @@ enum PracticeStatus { ready, recording, paused }
 class ScriptPracticePage extends StatefulWidget {
   final dynamic script;
   final String userId;
+  final VoidCallback? onBackToHome;
 
   const ScriptPracticePage({
     super.key,
     required this.script,
     required this.userId,
+    this.onBackToHome,
   });
 
   @override
@@ -261,6 +261,15 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
 
   Future<void> _start() async {
     try {
+      if (_status == PracticeStatus.ready &&
+          !await checkResourceAccess(
+            context,
+            widget.userId,
+            widget.script as Map,
+          )) {
+        return;
+      }
+      if (!mounted) return;
       if (await _audioRecorder.hasPermission()) {
         _timer?.cancel();
 
@@ -326,7 +335,9 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   }
 
   Future<void> _finishSession() async {
+    if (_isUploading) return;
     _timer?.cancel();
+    _scrollTimer?.cancel();
     setState(() => _isUploading = true);
 
     try {
@@ -357,19 +368,34 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
           if (mounted) {
-            Navigator.of(context).push(
+            await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => ResultPage(
                   sessionData: resultData,
-                  onBackToHome: () =>
-                      Navigator.popUntil(context, (r) => r.isFirst),
+                  onBackToHome: () {
+                    Navigator.popUntil(context, (r) => r.isFirst);
+                    widget.onBackToHome?.call();
+                  },
                   onPracticeAgain: () {
                     Navigator.pop(context);
-                    _reset();
                   },
                 ),
               ),
             );
+            // The upload is saved. Every Analysis exit clears only this draft.
+            final path = _audioPath;
+            _audioPath = null;
+            _timer?.cancel();
+            if (mounted) {
+              setState(() {
+                _isUploading = false;
+                _status = PracticeStatus.ready;
+                _seconds = 0;
+                _scrollTimer?.cancel();
+                if (_scrollController.hasClients) _scrollController.jumpTo(0);
+              });
+            }
+            await discardTemporaryRecording(path);
           }
         } else {
           if (mounted) {
@@ -386,7 +412,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         ).showSnackBar(const SnackBar(content: Text('Connection Error')));
       }
     }
-    setState(() => _isUploading = false);
+    if (mounted) setState(() => _isUploading = false);
   }
 
   String get _time {
@@ -405,34 +431,39 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       backgroundColor: const Color(0xFFF0F0F3),
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            _buildHeader(context),
-            Expanded(
-              child: SingleChildScrollView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
-                child: Column(
-                  children: [
-                    // ── TELEPROMPTER ──────────────────────
-                    _buildTeleprompter(title, level, language),
+        child: FixedBackLayout(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildHeader(context),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 24),
+                  child: Column(
+                    children: [
+                      // ── TELEPROMPTER ──────────────────────
+                      _buildTeleprompter(title, level, language),
 
-                    const SizedBox(height: 30),
+                      const SizedBox(height: 30),
 
-                    _buildRecordCard(),
+                      _buildRecordCard(),
 
-                    const SizedBox(height: 40),
+                      const SizedBox(height: 40),
 
-                    // ---> CONDITION FIX: Changed to 10 seconds <---
-                    if (_status == PracticeStatus.paused && _seconds >= 10)
-                      _buildFinishButton(),
+                      // ---> CONDITION FIX: Changed to 10 seconds <---
+                      if (_status == PracticeStatus.paused && _seconds >= 10)
+                        _buildFinishButton(),
 
-                    const SizedBox(height: 40),
-                  ],
+                      const SizedBox(height: 40),
+                    ],
+                  ),
                 ),
-              ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -774,7 +805,7 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final double topPadding = MediaQuery.of(context).padding.top;
+    const double topPadding = 0;
     return Container(
       width: double.infinity,
       color: Colors.white,
@@ -782,27 +813,6 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  _timer?.cancel();
-                  Navigator.pop(context);
-                },
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.chevron_left, color: Colors.black87, size: 20),
-                    Text(
-                      'Back',
-                      style: TextStyle(color: Colors.black87, fontSize: 14),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 14),
           const Text(
             'Script Practice',

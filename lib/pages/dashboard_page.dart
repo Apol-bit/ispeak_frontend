@@ -1,18 +1,18 @@
 import 'package:flutter/material.dart';
 import 'dart:async';
 import 'dart:convert';
-import 'learning_resources_page.dart';
+import 'session_history_page.dart';
+import '../models/session_history.dart';
+import '../services/resource_access.dart';
 import '../config/api_config.dart';
 import '../config/responsive.dart';
 import '../services/api_client.dart';
 import 'profile_screen.dart';
-import 'result_page.dart';
-import 'script_practice_page.dart';
-import 'time_challenge_page.dart';
 
 class DashBoardPage extends StatefulWidget {
   final VoidCallback onStartPractice;
   final VoidCallback onLearningResources;
+  final VoidCallback? onBackToHome;
   final String userId;
   final int refreshKey;
 
@@ -20,6 +20,7 @@ class DashBoardPage extends StatefulWidget {
     super.key,
     required this.onStartPractice,
     required this.onLearningResources,
+    this.onBackToHome,
     required this.userId,
     this.refreshKey = 0,
   });
@@ -86,8 +87,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
         'Dashboard: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
       );
       final responses = await Future.wait([
-        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}')),
-        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}')),
+        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}?view=compact')),
+        ApiClient.get(
+          Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}?limit=3'),
+        ),
         ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}')),
       ]);
       final statsRes = responses[0];
@@ -148,7 +151,10 @@ class _DashBoardPageState extends State<DashBoardPage> {
       }
 
       if (historyRes.statusCode == 200) {
-        _recentSessionsList = jsonDecode(historyRes.body);
+        _recentSessionsList = newestSessions(
+          jsonDecode(historyRes.body) as List,
+          limit: 3,
+        );
         debugPrint('Recent sessions count: ${_recentSessionsList.length}');
       }
 
@@ -157,68 +163,30 @@ class _DashBoardPageState extends State<DashBoardPage> {
         final profileData = jsonDecode(profileRes.body);
         final int totalSessions = _userStats['totalSessions'] ?? 0;
 
-        if (totalSessions >= 10) {
-          // Official level based on average score
-          _levelLocked = true;
-          final int avgScore = _userStats['avgScore'] ?? 0;
-          _userLevel = _scoreToLevel(avgScore);
-        } else {
-          // Use the demographic initial level stored in the backend
-          _levelLocked = false;
-          _userLevel =
-              profileData['level'] ?? profileData['initialLevel'] ?? 'Beginner';
-        }
+        _levelLocked = totalSessions >= 10;
+        _userLevel = ResourceAccess.currentLevel(profileData, _userStats);
       }
 
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     } catch (e) {
       debugPrint("Dashboard ERROR: $e");
       debugPrint("Dashboard ERROR type: ${e.runtimeType}");
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
-  /// Converts an average score to a level string
-  String _scoreToLevel(int avgScore) {
-    if (avgScore >= 80) return 'Advanced';
-    if (avgScore >= 60) return 'Intermediate';
-    return 'Beginner';
-  }
-
-  // --- FIXED SMART ROUTER ---
-  void _routeToSpecificPractice(
-    BuildContext context,
-    Map<String, dynamic> session,
-  ) {
-    // Now this will work because backend populates the objects!
-    final challengeData = session['challengeId'];
-    if (challengeData != null && challengeData is Map) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TimedChallengePage(
-            challenge: challengeData,
-            userId: widget.userId,
-          ),
+  Future<void> _openHistory() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SessionHistoryPage(
+          userId: widget.userId,
+          onStartPractice: widget.onStartPractice,
+          onBackToHome: widget.onBackToHome ?? () {},
         ),
-      ).then((_) => _fetchDashboardData());
-      return;
-    }
-
-    final scriptData = session['resourceId'];
-    if (scriptData != null && scriptData is Map) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ScriptPracticePage(script: scriptData, userId: widget.userId),
-        ),
-      ).then((_) => _fetchDashboardData());
-      return;
-    }
-
-    // Fallback
-    widget.onStartPractice();
+      ),
+    );
+    if (mounted) await _fetchDashboardData();
   }
 
   @override
@@ -240,7 +208,8 @@ class _DashBoardPageState extends State<DashBoardPage> {
                   _learningResourcesButton(context),
                   SizedBox(height: Responsive(context).h(20)),
                   _recentSessions(context),
-                  SizedBox(height: Responsive(context).h(120)),
+                  // Keep the final action above the docked microphone and nav.
+                  SizedBox(height: 160 + MediaQuery.paddingOf(context).bottom),
                 ],
               ),
             ),
@@ -498,12 +467,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text(
-                        'Evaluating Level',
-                        style: TextStyle(
-                          fontSize: r.sp(13),
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
+                      Expanded(
+                        child: Text(
+                          'Evaluating Level',
+                          style: TextStyle(
+                            fontSize: r.sp(13),
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black87,
+                          ),
                         ),
                       ),
                       Text(
@@ -624,14 +595,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
     return Padding(
       padding: r.padH(20),
       child: GestureDetector(
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (_) => LearningResourcesScreen(
-              userId: widget.userId,
-              onBack: () => Navigator.of(context).pop(),
-            ),
-          ),
-        ),
+        onTap: widget.onLearningResources,
         child: Container(
           width: double.infinity,
           padding: r.padHV(16, 16),
@@ -675,15 +639,6 @@ class _DashBoardPageState extends State<DashBoardPage> {
 
   Widget _recentSessions(BuildContext context) {
     final r = Responsive(context);
-    if (_recentSessionsList.isEmpty) {
-      return Padding(
-        padding: r.pad(40),
-        child: Text(
-          "No sessions yet. Start practicing!",
-          style: TextStyle(color: Colors.grey, fontSize: r.sp(13)),
-        ),
-      );
-    }
 
     return Padding(
       padding: r.padH(20),
@@ -695,9 +650,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
             style: TextStyle(fontSize: r.sp(18), fontWeight: FontWeight.bold),
           ),
           SizedBox(height: r.h(12)),
+          if (_recentSessionsList.isEmpty)
+            const Text(
+              'No sessions yet. Start practicing!',
+              style: TextStyle(color: Colors.grey),
+            ),
           ..._recentSessionsList.map((session) {
             String rawDate = session['createdAt'] ?? '';
-            String shortDate = rawDate.isNotEmpty
+            String shortDate = rawDate.length >= 10
                 ? rawDate.substring(0, 10)
                 : 'Unknown Date';
 
@@ -707,20 +667,15 @@ class _DashBoardPageState extends State<DashBoardPage> {
             int score = (session['overallScore'] ?? 0).toInt();
 
             return GestureDetector(
-              onTap: () {
-                Navigator.push(
+              onTap: () async {
+                await openSavedSession(
                   context,
-                  MaterialPageRoute(
-                    builder: (context) => ResultPage(
-                      sessionData: session,
-                      onBackToHome: () => Navigator.pop(context),
-                      onPracticeAgain: () {
-                        Navigator.pop(context);
-                        _routeToSpecificPractice(context, session);
-                      },
-                    ),
-                  ),
-                ).then((_) => _fetchDashboardData());
+                  userId: widget.userId,
+                  session: Map<String, dynamic>.from(session),
+                  onStartPractice: widget.onStartPractice,
+                  onBackToHome: widget.onBackToHome ?? () {},
+                );
+                if (mounted) await _fetchDashboardData();
               },
               child: _SessionCard(
                 date: shortDate,
@@ -732,6 +687,14 @@ class _DashBoardPageState extends State<DashBoardPage> {
               ),
             );
           }),
+          const SizedBox(height: 8),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton(
+              onPressed: _openHistory,
+              child: const Text('See All Sessions'),
+            ),
+          ),
         ],
       ),
     );

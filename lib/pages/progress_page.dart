@@ -1,22 +1,23 @@
+import 'session_history_page.dart';
+import '../services/resource_access.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../config/api_config.dart';
 import '../services/api_client.dart';
-import 'result_page.dart';
-import 'script_practice_page.dart';
-import 'time_challenge_page.dart';
 
 class ProgressPage extends StatefulWidget {
   final String userId;
   final VoidCallback onStartPractice;
+  final VoidCallback? onBackToHome;
   final int refreshKey;
 
   const ProgressPage({
     super.key,
     required this.userId,
     required this.onStartPractice,
+    this.onBackToHome,
     this.refreshKey = 0,
   });
 
@@ -26,7 +27,7 @@ class ProgressPage extends StatefulWidget {
 
 class _ProgressPageState extends State<ProgressPage> {
   bool _isLoading = true;
-  List<dynamic> _realSessions = [];
+  String? _currentLevel;
   Set<int> _activeDays = {};
 
   bool _isEnglishSelected = true;
@@ -157,12 +158,23 @@ class _ProgressPageState extends State<ProgressPage> {
       debugPrint(
         'Progress: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
       );
-      final url = Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}');
-      final response = await ApiClient.get(url);
+      final url = Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}?view=compact');
+      final responses = await Future.wait([
+        ApiClient.get(url),
+        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}')),
+      ]);
+      if (!mounted) return;
+      final response = responses[0];
       debugPrint('Progress: response status=${response.statusCode}');
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
+        _currentLevel = responses[1].statusCode == 200
+            ? ResourceAccess.currentLevel(
+                jsonDecode(responses[1].body),
+                data['overallStats'] ?? {},
+              )
+            : null;
         final List<dynamic> sessions = data['sessions'] ?? [];
 
         // Split sessions by language ---
@@ -207,7 +219,6 @@ class _ProgressPageState extends State<ProgressPage> {
 
         setState(() {
           _activeDays = newActiveDays;
-          _realSessions = sessions.reversed.toList();
 
           // Store both sets of daily data and show based on selected language
           _englishDailyScores = engDaily['overall']!;
@@ -225,12 +236,12 @@ class _ProgressPageState extends State<ProgressPage> {
           _isLoading = false;
         });
       } else {
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     } catch (e) {
       debugPrint("Progress ERROR: $e");
       debugPrint("Progress ERROR type: ${e.runtimeType}");
-      setState(() => _isLoading = false);
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -361,77 +372,18 @@ class _ProgressPageState extends State<ProgressPage> {
     return const Color(0xFFEF4444);
   }
 
-  String _formatDate(String? isoDate) {
-    if (isoDate == null) return "Unknown Date";
-    try {
-      final date = DateTime.parse(isoDate).toLocal();
-      const months = [
-        'Jan',
-        'Feb',
-        'Mar',
-        'Apr',
-        'May',
-        'Jun',
-        'Jul',
-        'Aug',
-        'Sep',
-        'Oct',
-        'Nov',
-        'Dec',
-      ];
-      return '${months[date.month - 1]} ${date.day}, ${date.year}';
-    } catch (e) {
-      return "Recent";
-    }
-  }
-
-  String _formatSessionTime(String? isoDate) {
-    if (isoDate == null || isoDate.isEmpty) return 'Unknown Time';
-    try {
-      final dateTime = DateTime.parse(isoDate).toLocal();
-      final hour = dateTime.hour;
-      final minute = dateTime.minute.toString().padLeft(2, '0');
-      final period = hour >= 12 ? 'PM' : 'AM';
-      final displayHour = (hour > 12) ? hour - 12 : (hour == 0 ? 12 : hour);
-      return '$displayHour:$minute $period';
-    } catch (e) {
-      return 'Unknown Time';
-    }
-  }
-
-  void _routeToSpecificPractice(
-    BuildContext context,
-    Map<String, dynamic> session,
-  ) {
-    // Now this will work because backend populates the objects!
-    final challengeData = session['challengeId'];
-    if (challengeData != null && challengeData is Map) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) => TimedChallengePage(
-            challenge: challengeData,
-            userId: widget.userId,
-          ),
+  Future<void> _openHistory() async {
+    await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => SessionHistoryPage(
+          userId: widget.userId,
+          onStartPractice: widget.onStartPractice,
+          onBackToHome: widget.onBackToHome ?? () {},
         ),
-      ).then((_) => _fetchUserProgress());
-      return;
-    }
-
-    final scriptData = session['resourceId'];
-    if (scriptData != null && scriptData is Map) {
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (_) =>
-              ScriptPracticePage(script: scriptData, userId: widget.userId),
-        ),
-      ).then((_) => _fetchUserProgress());
-      return;
-    }
-
-    // Fallback
-    widget.onStartPractice(); // Fallback
+      ),
+    );
+    if (mounted) await _fetchUserProgress();
   }
 
   @override
@@ -498,6 +450,18 @@ class _ProgressPageState extends State<ProgressPage> {
                   ),
 
                   const SizedBox(height: 20),
+                  if (_isLoading) const LinearProgressIndicator(),
+                  if (_currentLevel != null)
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(20, 0, 20, 16),
+                      child: Text(
+                        'Current Level: $_currentLevel',
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
                   _buildWeeklySummary(accentColor),
                   const SizedBox(height: 20),
 
@@ -571,61 +535,13 @@ class _ProgressPageState extends State<ProgressPage> {
                         ),
                         const SizedBox(height: 14),
 
-                        if (_isLoading)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(20.0),
-                              child: CircularProgressIndicator(),
-                            ),
-                          )
-                        else if (_realSessions.isEmpty)
-                          const Center(
-                            child: Padding(
-                              padding: EdgeInsets.all(20.0),
-                              child: Text("No sessions recorded yet."),
-                            ),
-                          )
-                        else
-                          ..._realSessions.asMap().entries.map((entry) {
-                            int index = entry.key;
-                            var session = entry.value;
-
-                            int score = (session['overallScore'] ?? 0).toInt();
-                            String dateStr = _formatDate(session['createdAt']);
-                            String timeStr = _formatSessionTime(
-                              session['createdAt'],
-                            ); // NEW
-
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 10),
-                              child: _historyCard(
-                                'Session #${_realSessions.length - index}',
-                                dateStr,
-                                timeStr, // NEW: Pass the time
-                                '$score',
-                                accentColor,
-                                () {
-                                  Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                      builder: (context) => ResultPage(
-                                        sessionData: session,
-                                        onBackToHome: () =>
-                                            Navigator.pop(context),
-                                        onPracticeAgain: () {
-                                          Navigator.pop(context);
-                                          _routeToSpecificPractice(
-                                            context,
-                                            session,
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ).then((_) => _fetchUserProgress());
-                                },
-                              ),
-                            );
-                          }),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton(
+                            onPressed: _openHistory,
+                            child: const Text('View Session History'),
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -729,24 +645,24 @@ class _ProgressPageState extends State<ProgressPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Expanded(
-                  child: Text(
-                    'Skills Breakdown',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const Text(
+                  'Skills Breakdown',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(25),
                   ),
                   padding: const EdgeInsets.all(4),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
                     children: [
                       _toggleBtn(
                         'English',
@@ -786,15 +702,18 @@ class _ProgressPageState extends State<ProgressPage> {
                     children: [
                       Icon(Icons.stars_rounded, color: accentColor, size: 20),
                       const SizedBox(width: 8),
-                      Text(
-                        isEnglish
-                            ? 'ENGLISH SCORE'
-                            : 'FILIPINO / TAGLISH SCORE',
-                        style: TextStyle(
-                          color: accentColor,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 12,
-                          letterSpacing: 1.2,
+                      Flexible(
+                        child: Text(
+                          textAlign: TextAlign.center,
+                          isEnglish
+                              ? 'ENGLISH SCORE'
+                              : 'FILIPINO / TAGLISH SCORE',
+                          style: TextStyle(
+                            color: accentColor,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            letterSpacing: 1.2,
+                          ),
                         ),
                       ),
                     ],
@@ -875,24 +794,24 @@ class _ProgressPageState extends State<ProgressPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                const Expanded(
-                  child: Text(
-                    'Performance Per Day',
-                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
-                    overflow: TextOverflow.ellipsis,
-                  ),
+                const Text(
+                  'Performance Per Day',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 17),
                 ),
-                const SizedBox(width: 8),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.grey.shade100,
                     borderRadius: BorderRadius.circular(25),
                   ),
                   padding: const EdgeInsets.all(4),
-                  child: Row(
+                  child: Wrap(
+                    spacing: 4,
+                    runSpacing: 4,
                     children: [
                       _toggleBtn(
                         'Feature',
@@ -916,7 +835,9 @@ class _ProgressPageState extends State<ProgressPage> {
             ),
             if (!_isBarChart) ...[
               const SizedBox(height: 16),
-              Row(
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
                   _metricChip(
                     'Pace',
@@ -1517,71 +1438,6 @@ class _ProgressPageState extends State<ProgressPage> {
           ),
         ),
       ],
-    );
-  }
-
-  Widget _historyCard(
-    String title,
-    String date,
-    String time,
-    String score,
-    Color accentColor,
-    VoidCallback onTap,
-  ) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: _cardDecoration(),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      fontSize: 16,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    date,
-                    style: const TextStyle(fontSize: 13, color: Colors.grey),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    time,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey,
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: Text(
-                score,
-                style: TextStyle(
-                  fontWeight: FontWeight.w900,
-                  fontSize: 20,
-                  color: accentColor,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }

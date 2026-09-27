@@ -1,3 +1,4 @@
+import '../services/temporary_recording.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:io';
@@ -14,9 +15,15 @@ enum PracticeLanguage { english, filipino, taglish }
 
 class PracticePage extends StatefulWidget {
   final String userId;
+  final int resetVersion;
   final Function(Map<String, dynamic>)? onFinish;
 
-  const PracticePage({super.key, required this.userId, this.onFinish});
+  const PracticePage({
+    super.key,
+    required this.userId,
+    this.onFinish,
+    this.resetVersion = 0,
+  });
 
   @override
   State<PracticePage> createState() => _PracticePageState();
@@ -44,6 +51,20 @@ class _PracticePageState extends State<PracticePage> {
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
+
+  @override
+  void didUpdateWidget(PracticePage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.resetVersion != widget.resetVersion) {
+      _timer?.cancel();
+      final path = _audioPath;
+      _audioPath = null;
+      _seconds = 0;
+      _state = PracticeState.ready;
+      _isUploading = false;
+      unawaited(discardTemporaryRecording(path));
+    }
+  }
 
   @override
   void dispose() {
@@ -99,6 +120,7 @@ class _PracticePageState extends State<PracticePage> {
       final file = File(_audioPath!);
       if (await file.exists()) await file.delete();
     }
+    if (!mounted) return;
     setState(() {
       _state = PracticeState.ready;
       _seconds = 0;
@@ -351,6 +373,7 @@ class _PracticePageState extends State<PracticePage> {
         onPressed: _isUploading
             ? null
             : () async {
+                if (_isUploading) return;
                 _timer?.cancel();
                 setState(() => _isUploading = true);
 

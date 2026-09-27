@@ -19,7 +19,7 @@ class ApiClient {
   }
 
   static const requestTimeout = Duration(seconds: 15);
-  static const uploadTimeout = Duration(minutes: 5);
+  static const uploadTimeout = Duration(minutes: 6);
   static Future<void> Function()? onAuthenticationExpired;
   static bool _handlingAuthenticationFailure = false;
 
@@ -61,8 +61,12 @@ class ApiClient {
     http.MultipartRequest request,
   ) async {
     request.headers.addAll(await headers());
-    final streamed = await request.send().timeout(uploadTimeout);
-    return _handle(await http.Response.fromStream(streamed));
+    // Bound the complete exchange, including reading the response body.
+    final response = await (() async {
+      final streamed = await request.send();
+      return http.Response.fromStream(streamed);
+    })().timeout(uploadTimeout);
+    return _handle(response);
   }
 
   static Future<http.Response> _handle(http.Response response) async {

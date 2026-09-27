@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import '../theme/app_theme.dart';
+import '../widgets/resource_icon.dart';
+import '../widgets/loading_skeleton.dart';
 import 'dart:convert';
+import '../services/resource_access.dart';
+import '../widgets/fixed_back_layout.dart';
 import 'package:ispeak/config/api_config.dart';
 import 'package:ispeak/services/api_client.dart';
 import 'package:ispeak/pages/time_challenge_page.dart';
@@ -7,88 +12,174 @@ import 'package:ispeak/pages/script_practice_page.dart';
 
 enum _Tab { scripts, challenges, guidedTasks }
 
+List<dynamic> resourcesInDisplayOrder(Iterable<dynamic> source) {
+  final rows = source.toList();
+  final original = <Object?, int>{
+    for (var index = 0; index < rows.length; index++)
+      (rows[index] as Map)['_id']: index,
+  };
+  rows.sort((first, second) {
+    final firstMap = first as Map;
+    final secondMap = second as Map;
+    final firstOrder = firstMap['displayOrder'];
+    final secondOrder = secondMap['displayOrder'];
+    if (firstOrder is num && secondOrder is num) {
+      return firstOrder.compareTo(secondOrder);
+    }
+    // Legacy rows retain the deterministic order supplied by the API. New
+    // resources have an order after the legacy group until it is first saved.
+    if (firstOrder is num) return 1;
+    if (secondOrder is num) return -1;
+    return original[firstMap['_id']]!.compareTo(original[secondMap['_id']]!);
+  });
+  return rows;
+}
+
 class LearningResourcesScreen extends StatefulWidget {
   final VoidCallback? onBack;
-  final String userId; // <-- FIX APPLIED HERE
+  final String userId;
+  final bool isActive;
+  final int refreshKey;
 
-  const LearningResourcesScreen({super.key, required this.userId, this.onBack});
+  const LearningResourcesScreen({
+    super.key,
+    required this.userId,
+    this.onBack,
+    this.isActive = true,
+    this.refreshKey = 0,
+  });
 
   @override
   State<LearningResourcesScreen> createState() =>
       _LearningResourcesScreenState();
 }
 
-class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
+class _LearningResourcesScreenState extends State<LearningResourcesScreen>
+    with WidgetsBindingObserver {
   _Tab _activeTab = _Tab.scripts;
-
-  // --- BACKEND STATE VARIABLES ---
   bool _isLoading = true;
-  List<dynamic> _scripts = [];
-  List<dynamic> _challenges = [];
-  List<dynamic> _guidedTasks = [];
+  String? _error;
+  String? _levelError;
+  List<dynamic> _resources = [];
+  late final ResourceFilters _filters = ResourceFilters(widget.userId);
+  bool _restored = false;
+  int _request = 0;
 
-  // --- LEVEL FILTER ---
-  String _userLevel =
-      ''; // 'Beginner', 'Intermediate', 'Advanced' or '' (no filter)
+  List<dynamic> _ofType(String type) => resourcesInDisplayOrder(
+    _resources.where(
+      (resource) =>
+          resource['type'] == type && _filters.matches(resource as Map),
+    ),
+  );
+  List<dynamic> get _scripts => _ofType('Script');
+  List<dynamic> get _challenges => _ofType('Challenge');
+  List<dynamic> get _guidedTasks => _ofType('GuidedTask');
 
   @override
   void initState() {
     super.initState();
-    _fetchResourcesFromBackend();
+    WidgetsBinding.instance.addObserver(this);
+    if (widget.isActive) _fetchResourcesFromBackend();
   }
 
-  // --- THE BACKEND BRIDGE ---
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didUpdateWidget(LearningResourcesScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isActive &&
+        (!oldWidget.isActive || oldWidget.refreshKey != widget.refreshKey)) {
+      _fetchResourcesFromBackend();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && widget.isActive) {
+      _fetchResourcesFromBackend();
+    }
+  }
+
   Future<void> _fetchResourcesFromBackend() async {
+    final request = ++_request;
+    setState(() {
+      _isLoading = true;
+      _error = null;
+    });
+    try {
+      final response = await ApiClient.get(
+        Uri.parse('${ApiConfig.baseUrl}/resources'),
+      );
+      if (response.statusCode != 200) throw StateError('Resources unavailable');
+      final resources = jsonDecode(response.body) as List;
+      String? levelError;
+      try {
+        final level = await ResourceAccess.fetchCurrentLevel(widget.userId);
+        if (!mounted || request != _request) return;
+        if (_restored) {
+          await _filters.updateCurrentLevel(level);
+        } else {
+          await _filters.restore(level);
+          _restored = true;
+        }
+      } catch (_) {
+        levelError =
+            'Unable to load resources and verify your level. Please try again.';
+      }
+      if (!mounted || request != _request) return;
+      setState(() {
+        _resources = resources;
+        _levelError = levelError;
+        _isLoading = false;
+      });
+    } catch (_) {
+      if (!mounted || request != _request) return;
+      setState(() {
+        _isLoading = false;
+        _error =
+            'Unable to load resources and verify your level. Please try again.';
+      });
+    }
+  }
+
+  Future<void> _openResource(Map resource, Widget page) async {
+    if (resource['type'] == 'GuidedTask') {
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+      if (mounted) await _fetchResourcesFromBackend();
+      return;
+    }
+    // Revalidate at entry as well as on return/resume, including demotions.
     setState(() => _isLoading = true);
     try {
-      // Fetch user profile to get their current level
-      final profileRes = await ApiClient.get(
-        Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'),
-      );
-      if (profileRes.statusCode == 200) {
-        final profileData = json.decode(profileRes.body);
-        // Prefer the stored official/initial level
-        _userLevel = profileData['level'] ?? profileData['initialLevel'] ?? '';
-      }
-
-      final url = Uri.parse('${ApiConfig.baseUrl}/resources');
-      final response = await ApiClient.get(url);
-
-      if (response.statusCode == 200) {
-        final List<dynamic> allResources = json.decode(response.body);
-
-        // Apply level filter — only show resources that match user's level
-        List<dynamic> filtered(List<dynamic> list) {
-          if (_userLevel.isEmpty) return list;
-          return list.where((r) {
-            final String? diff = r['difficulty'];
-            if (diff == null) return true; // show items with no difficulty set
-            return diff.toLowerCase() == _userLevel.toLowerCase();
-          }).toList();
-        }
-
-        if (!mounted) return;
-        setState(() {
-          _scripts = filtered(
-            allResources.where((r) => r['type'] == 'Script').toList(),
-          );
-          _challenges = filtered(
-            allResources.where((r) => r['type'] == 'Challenge').toList(),
-          );
-          _guidedTasks = filtered(
-            allResources.where((r) => r['type'] == 'GuidedTask').toList(),
-          );
-          _isLoading = false;
-        });
-      } else {
-        debugPrint('Failed to load resources. Status: ${response.statusCode}');
-        if (!mounted) return;
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      debugPrint('Error connecting to backend: $e');
+      final level = await ResourceAccess.fetchCurrentLevel(widget.userId);
+      await _filters.updateCurrentLevel(level);
       if (!mounted) return;
       setState(() => _isLoading = false);
+      final difficulty = ResourceAccess.parseLevel(resource['difficulty']);
+      if (difficulty == null || !ResourceAccess.allows(level, difficulty)) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ResourceAccess.lockedMessage(difficulty ?? 'These')),
+          ),
+        );
+        return;
+      }
+      await Navigator.push(context, MaterialPageRoute(builder: (_) => page));
+      if (mounted) await _fetchResourcesFromBackend();
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _isLoading = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Unable to verify your current level. Please try again.',
+          ),
+        ),
+      );
     }
   }
 
@@ -100,165 +191,225 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
   }
 
   // Helper to map Database icons
-  IconData _mapIcon(String? iconName) {
-    if (iconName == 'chat_bubble_outline') return Icons.chat_bubble_outline;
-    if (iconName == 'access_time') return Icons.access_time;
-    if (iconName == 'bolt') return Icons.bolt;
-    if (iconName == 'person_outline') return Icons.person_outline;
-    return Icons.volume_up; // Default
-  }
-
   @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      body: Material(
-        color: const Color(0xFFF2F4F7),
-        child: SafeArea(
-          top: false, // Edge-to-edge support
-          bottom: true,
-          child: DefaultTextStyle.merge(
-            style: const TextStyle(decoration: TextDecoration.none),
+  Widget build(BuildContext context) => Theme(
+    data: Theme.of(context).copyWith(
+      colorScheme: Theme.of(context).colorScheme.copyWith(
+        primary: AppTheme.resourceBlue,
+        secondary: AppTheme.resourceBlue,
+        secondaryContainer: AppTheme.resourceBlue.withValues(alpha: 0.12),
+        onSecondaryContainer: AppTheme.resourceBlue,
+        surfaceTint: Colors.transparent,
+      ),
+      highlightColor: AppTheme.resourceBlue.withValues(alpha: 0.12),
+      splashColor: AppTheme.resourceBlue.withValues(alpha: 0.12),
+    ),
+    child: Scaffold(
+      backgroundColor: const Color(0xFFF2F4F7),
+      body: FixedBackLayout(
+        onBack: widget.onBack,
+        child: RefreshIndicator(
+          onRefresh: _fetchResourcesFromBackend,
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _header(context),
-                Expanded(
-                  child: _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                            color: Color(0xFF3F7CF4),
-                          ),
-                        )
-                      : SingleChildScrollView(
-                          padding: const EdgeInsets.fromLTRB(16, 20, 16, 100),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _tabBar(),
-                              const SizedBox(height: 20),
-                              _subTitle(),
-                              const SizedBox(height: 14),
-
-                              // Dynamically rendering from backend data
-                              if (_activeTab == _Tab.scripts)
-                                ..._buildScriptCards(),
-                              if (_activeTab == _Tab.challenges)
-                                ..._buildChallengeCards(),
-                              if (_activeTab == _Tab.guidedTasks)
-                                ..._buildGuidedTaskCards(),
-                            ],
+                Container(
+                  width: double.infinity,
+                  color: const Color(0xFF3F7CF4),
+                  padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+                  child: const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Learning Resources',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 26,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      SizedBox(height: 4),
+                      Text(
+                        'Improve your speaking skills',
+                        style: TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 120),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _tabBar(),
+                      const SizedBox(height: 12),
+                      Wrap(
+                        spacing: 8,
+                        runSpacing: 4,
+                        children: [
+                          for (final language in ResourceAccess.languages)
+                            ChoiceChip(
+                              selectedColor: AppTheme.resourceBlue.withValues(
+                                alpha: 0.12,
+                              ),
+                              backgroundColor: Colors.white,
+                              surfaceTintColor: Colors.transparent,
+                              checkmarkColor: AppTheme.resourceBlue,
+                              labelStyle: TextStyle(
+                                color: _filters.selectedLanguage == language
+                                    ? AppTheme.resourceBlue
+                                    : AppTheme.bodyInk,
+                              ),
+                              side: BorderSide(
+                                color: _filters.selectedLanguage == language
+                                    ? AppTheme.resourceBlue
+                                    : const Color(0xFFD1D5DB),
+                              ),
+                              label: Text(language),
+                              selected: _filters.selectedLanguage == language,
+                              onSelected: (_) => setState(
+                                () => _filters.selectedLanguage = language,
+                              ),
+                            ),
+                        ],
+                      ),
+                      const SizedBox(height: 4),
+                      if (_activeTab != _Tab.guidedTasks &&
+                          (!_isLoading || _resources.isNotEmpty))
+                        PopupMenuButton<String>(
+                          key: const ValueKey('level-filter'),
+                          color: AppTheme.menuSurfaceOf(context),
+                          surfaceTintColor: Colors.transparent,
+                          initialValue: _filters.selectedLevel,
+                          enabled:
+                              !_isLoading &&
+                              _error == null &&
+                              _levelError == null,
+                          tooltip: 'Filter by level',
+                          onSelected: (level) async {
+                            final selected = await _filters.selectLevel(level);
+                            if (!context.mounted) return;
+                            if (!selected) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(
+                                    ResourceAccess.lockedMessage(level),
+                                  ),
+                                ),
+                              );
+                            } else {
+                              setState(() {});
+                            }
+                          },
+                          itemBuilder: (_) => [
+                            for (final level in ResourceAccess.levels)
+                              PopupMenuItem(
+                                value: level,
+                                child: Row(
+                                  children: [
+                                    if (level == _filters.selectedLevel) ...[
+                                      const Icon(
+                                        Icons.check,
+                                        color: AppTheme.resourceBlue,
+                                        size: 18,
+                                      ),
+                                      const SizedBox(width: 6),
+                                    ],
+                                    Expanded(
+                                      child: Text(
+                                        level,
+                                        style: TextStyle(
+                                          color: level == _filters.selectedLevel
+                                              ? AppTheme.resourceBlue
+                                              : AppTheme.menuTextOf(context),
+                                        ),
+                                      ),
+                                    ),
+                                    const SizedBox(width: 12),
+                                    Text(
+                                      ResourceAccess.allows(
+                                            _filters.currentLevel,
+                                            level,
+                                          )
+                                          ? 'Available'
+                                          : 'Locked',
+                                      style: TextStyle(
+                                        fontSize: 12,
+                                        color:
+                                            ResourceAccess.allows(
+                                              _filters.currentLevel,
+                                              level,
+                                            )
+                                            ? AppTheme.resourceBlue
+                                            : Colors.grey,
+                                      ),
+                                    ),
+                                    if (!ResourceAccess.allows(
+                                      _filters.currentLevel,
+                                      level,
+                                    )) ...[
+                                      const SizedBox(width: 6),
+                                      Icon(
+                                        Icons.lock_outline,
+                                        size: 16,
+                                        color: AppTheme.menuTextOf(context),
+                                      ),
+                                    ],
+                                  ],
+                                ),
+                              ),
+                          ],
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'Level: ${_filters.selectedLevel}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                    color: AppTheme.resourceBlue,
+                                  ),
+                                ),
+                                const Icon(
+                                  Icons.arrow_drop_down,
+                                  color: AppTheme.resourceBlue,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
+                      if (_isLoading && _resources.isEmpty)
+                        const SkeletonList(count: 3)
+                      else if (_error != null ||
+                          (_activeTab != _Tab.guidedTasks &&
+                              _levelError != null)) ...[
+                        Text(_error ?? _levelError!),
+                        TextButton(
+                          onPressed: _fetchResourcesFromBackend,
+                          child: const Text('Try Again'),
+                        ),
+                      ] else ...[
+                        _subTitle(),
+                        const SizedBox(height: 14),
+                        if (_activeTab == _Tab.scripts) ..._buildScriptCards(),
+                        if (_activeTab == _Tab.challenges)
+                          ..._buildChallengeCards(),
+                        if (_activeTab == _Tab.guidedTasks)
+                          ..._buildGuidedTaskCards(),
+                      ],
+                    ],
+                  ),
                 ),
               ],
             ),
           ),
         ),
       ),
-    );
-  }
-
-  Widget _header(BuildContext context) {
-    final double topPadding = MediaQuery.of(context).padding.top;
-
-    IconData levelIcon;
-    switch (_userLevel) {
-      case 'Advanced':
-        levelIcon = Icons.emoji_events_outlined;
-        break;
-      case 'Intermediate':
-        levelIcon = Icons.trending_up;
-        break;
-      default:
-        levelIcon = Icons.spa_outlined;
-    }
-
-    return Container(
-      width: double.infinity,
-      padding: EdgeInsets.fromLTRB(20, topPadding + 15, 20, 20),
-      decoration: const BoxDecoration(color: Color(0xFF3F7CF4)),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          GestureDetector(
-            onTap: widget.onBack,
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, color: Colors.white, size: 24),
-                SizedBox(width: 4),
-                Text(
-                  'Back',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Learning Resources',
-            style: TextStyle(
-              color: Colors.white,
-              fontSize: 26,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 4),
-          const Text(
-            'Improve your speaking skills',
-            style: TextStyle(color: Colors.white70, fontSize: 14),
-          ),
-          if (_userLevel.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.filter_list, color: Colors.white70, size: 14),
-                    SizedBox(width: 6),
-                    Text(
-                      'Showing resources for your level:',
-                      style: TextStyle(color: Colors.white70, fontSize: 12),
-                    ),
-                  ],
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.white.withAlpha(40),
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(color: Colors.white38),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(levelIcon, color: Colors.white, size: 13),
-                      const SizedBox(width: 5),
-                      Text(
-                        _userLevel,
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ],
-          const SizedBox(height: 8),
-        ],
-      ),
-    );
-  }
+    ),
+  );
 
   Widget _tabBar() {
     return Container(
@@ -340,17 +491,14 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           duration: '${scriptData['estimatedMinutes'] ?? 0} min',
           difficulty: _mapDifficulty(scriptData['difficulty']),
           language: scriptData['language'] ?? 'English',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => ScriptDetailPage(
-                  script: scriptData,
-                  userId: widget.userId, // <-- FIX APPLIED HERE
-                ),
-              ),
-            );
-          },
+          onTap: () => _openResource(
+            scriptData,
+            ScriptDetailPage(
+              script: scriptData,
+              userId: widget.userId,
+              onBackToHome: widget.onBack,
+            ),
+          ),
         ),
       );
     }).toList();
@@ -374,22 +522,15 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
                   false)
               ? challengeData['targetMetric'].toString()
               : '120-150 WPM',
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => TimedChallengePage(
-                  challenge: challengeData,
-                  userId: widget.userId, // <-- FIX APPLIED HERE
-                  onBack: () => Navigator.pop(context),
-                  onBackToHome: () {
-                    Navigator.pop(context);
-                    if (widget.onBack != null) widget.onBack!();
-                  },
-                ),
-              ),
-            );
-          },
+          language: challengeData['language'],
+          onTap: () => _openResource(
+            challengeData,
+            TimedChallengePage(
+              challenge: challengeData,
+              userId: widget.userId,
+              onBackToHome: widget.onBack,
+            ),
+          ),
         ),
       );
     }).toList();
@@ -408,15 +549,10 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
           steps: (taskData['steps'] as List?)?.length ?? 0,
           durationMin: taskData['estimatedMinutes'] ?? 5,
           category: taskData['category'] ?? 'General',
-          icon: _mapIcon(taskData['iconName']),
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (_) => GuidedTaskDetailPage(task: taskData),
-              ),
-            );
-          },
+          icon: ResourceIcon.resolve(taskData['iconName']),
+          language: taskData['language']?.toString() ?? '',
+          onTap: () =>
+              _openResource(taskData, GuidedTaskDetailPage(task: taskData)),
         ),
       );
     }).toList();
@@ -435,7 +571,9 @@ class _LearningResourcesScreenState extends State<LearningResourcesScreen> {
             ),
             const SizedBox(height: 14),
             Text(
-              'No $_userLevel $contentType yet',
+              _activeTab == _Tab.guidedTasks
+                  ? 'No guided tasks yet'
+                  : 'No ${_filters.selectedLevel} $contentType yet',
               style: const TextStyle(
                 fontSize: 16,
                 fontWeight: FontWeight.bold,
@@ -626,6 +764,7 @@ class _ScriptCard extends StatelessWidget {
 // ─── Guided Task Card ─────────────────────────────────────────────────────────
 class _GuidedTaskCard extends StatelessWidget {
   final String title;
+  final String language;
   final int steps;
   final int durationMin;
   final String category;
@@ -634,6 +773,7 @@ class _GuidedTaskCard extends StatelessWidget {
 
   const _GuidedTaskCard({
     required this.title,
+    required this.language,
     required this.steps,
     required this.durationMin,
     required this.category,
@@ -684,6 +824,13 @@ class _GuidedTaskCard extends StatelessWidget {
                     style: TextStyle(fontSize: 12, color: Colors.grey.shade500),
                   ),
                   const SizedBox(height: 7),
+                  Text(
+                    language,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      color: Color(0xFF3F7CF4),
+                    ),
+                  ),
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 10,
@@ -716,6 +863,7 @@ class _GuidedTaskCard extends StatelessWidget {
 // ─── Challenge Card ───────────────────────────────────────────────────────────
 class _ChallengeCard extends StatelessWidget {
   final String title;
+  final String language;
   final String description;
   final int durationSeconds;
   final ChallengeDifficulty difficulty;
@@ -724,6 +872,7 @@ class _ChallengeCard extends StatelessWidget {
 
   const _ChallengeCard({
     required this.title,
+    required this.language,
     required this.description,
     required this.durationSeconds,
     required this.difficulty,
@@ -836,7 +985,7 @@ class _ChallengeCard extends StatelessWidget {
                           borderRadius: BorderRadius.circular(20),
                         ),
                         child: Text(
-                          _difficultyLabel,
+                          '$_difficultyLabel | $language',
                           style: TextStyle(
                             fontSize: 11,
                             fontWeight: FontWeight.w600,
@@ -853,11 +1002,13 @@ class _ChallengeCard extends StatelessWidget {
                             color: Colors.grey.shade500,
                           ),
                           const SizedBox(width: 4),
-                          Text(
-                            'Target: $targetWpm',
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey.shade500,
+                          Flexible(
+                            child: Text(
+                              'Target: $targetWpm',
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey.shade500,
+                              ),
                             ),
                           ),
                         ],
@@ -904,25 +1055,29 @@ class GuidedTaskDetailPage extends StatelessWidget {
         child: SafeArea(
           top: false, // Edge-to-edge support to match others
           bottom: true,
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  // Consistent padding with other screens
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
-                  child: Column(
-                    children: [
-                      _buildStepGuideCard(),
-                      if (proTip.isNotEmpty) ...[
-                        const SizedBox(height: 16),
-                        _buildProTipCard(proTip),
+          child: FixedBackLayout(
+            onBack: null,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(context),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
+                    child: Column(
+                      children: [
+                        _buildStepGuideCard(),
+                        if (proTip.isNotEmpty) ...[
+                          const SizedBox(height: 16),
+                          _buildProTipCard(proTip),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -934,7 +1089,7 @@ class GuidedTaskDetailPage extends StatelessWidget {
     final category = task['category'] ?? 'General';
     final duration = '${task['estimatedMinutes'] ?? 0} min';
 
-    final double topPadding = MediaQuery.of(context).padding.top;
+    const double topPadding = 0;
 
     return Container(
       width: double.infinity,
@@ -947,20 +1102,6 @@ class GuidedTaskDetailPage extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          GestureDetector(
-            onTap: () => Navigator.pop(context),
-            child: const Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.chevron_left, color: Colors.white, size: 24),
-                SizedBox(width: 4),
-                Text(
-                  'Back',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
-                ),
-              ],
-            ),
-          ),
           const SizedBox(height: 14),
           Text(
             title,

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../config/responsive.dart';
+import '../models/signup_name.dart';
 import '../services/auth_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/primary_button.dart';
@@ -28,6 +29,7 @@ class _SignupScreenState extends State<SignupScreen> {
   bool _isConfirmPasswordVisible = false;
   bool _isLoading = false;
   bool _agreeToTerms = false;
+  String _nameExtension = '';
 
   @override
   void dispose() {
@@ -58,7 +60,10 @@ class _SignupScreenState extends State<SignupScreen> {
       try {
         final data = await AuthService().signup(
           firstName: _firstNameController.text.trim(),
-          lastName: _lastNameController.text.trim(),
+          lastName: lastNameWithExtension(
+            _lastNameController.text,
+            _nameExtension,
+          ),
           username: _usernameController.text.trim(),
           email: _emailController.text.trim(),
           password: _passwordController.text,
@@ -67,7 +72,11 @@ class _SignupScreenState extends State<SignupScreen> {
         if (data['success'] == true) {
           if (!mounted) return;
           // Extract the newly created userId from the response
-          final String newUserId = data['user']?['_id'] ?? data['userId'] ?? '';
+          final String newUserId =
+              data['user']?['id'] ??
+              data['user']?['_id'] ??
+              data['userId'] ??
+              '';
           final String username = _usernameController.text.trim();
 
           ScaffoldMessenger.of(context).showSnackBar(
@@ -245,6 +254,51 @@ class _SignupScreenState extends State<SignupScreen> {
                         SizedBox(height: r.h(20)),
 
                         Text(
+                          'Name Extension (optional)',
+                          style: TextStyle(
+                            fontSize: r.sp(13),
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        SizedBox(height: r.h(8)),
+                        DropdownButtonFormField<String>(
+                          key: const ValueKey('name-extension'),
+                          initialValue: _nameExtension,
+                          isExpanded: true,
+                          dropdownColor: AppTheme.menuSurfaceOf(context),
+                          style: TextStyle(
+                            color: AppTheme.menuTextOf(context),
+                            fontFamily: AppTheme.fontFamily,
+                          ),
+                          decoration: InputDecoration(
+                            filled: true,
+                            fillColor: AppTheme.menuSurfaceOf(context),
+                            border: OutlineInputBorder(
+                              borderRadius: r.radius(12),
+                            ),
+                            contentPadding: r.padHV(16, 14),
+                          ),
+                          items: [
+                            for (final extension in nameExtensions)
+                              DropdownMenuItem(
+                                value: extension,
+                                child: Text(
+                                  extension.isEmpty
+                                      ? 'None / Blank'
+                                      : extension,
+                                  style: TextStyle(
+                                    color: extension == _nameExtension
+                                        ? AppTheme.resourceBlue
+                                        : AppTheme.menuTextOf(context),
+                                  ),
+                                ),
+                              ),
+                          ],
+                          onChanged: (value) =>
+                              setState(() => _nameExtension = value ?? ''),
+                        ),
+                        SizedBox(height: r.h(20)),
+                        Text(
                           'Username',
                           style: TextStyle(
                             fontSize: r.sp(13),
@@ -286,7 +340,9 @@ class _SignupScreenState extends State<SignupScreen> {
                             if (value == null || value.isEmpty) {
                               return 'Please enter your email';
                             }
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value)) {
+                            if (!RegExp(
+                              r'^[^@]+@[^@]+\.[^@]+',
+                            ).hasMatch(value)) {
                               return 'Please enter a valid email';
                             }
                             return null;

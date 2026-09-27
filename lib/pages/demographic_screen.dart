@@ -289,14 +289,27 @@ class _DemographicScreenState extends State<DemographicScreen>
                           DropdownButtonFormField<String>(
                             initialValue: _selectedGradeLevel,
                             isExpanded: true,
-                            decoration: _inputDecoration('Select your level'),
+                            dropdownColor: AppTheme.menuSurfaceOf(context),
+                            style: TextStyle(
+                              color: AppTheme.menuTextOf(context),
+                              fontFamily: AppTheme.fontFamily,
+                            ),
+                            decoration: _inputDecoration(
+                              'Select your level',
+                              fillColor: AppTheme.menuSurfaceOf(context),
+                            ),
                             items: _gradeLevelOptions
                                 .map(
                                   (g) => DropdownMenuItem(
                                     value: g,
                                     child: Text(
                                       g,
-                                      style: const TextStyle(fontSize: 14),
+                                      style: TextStyle(
+                                        fontSize: 14,
+                                        color: g == _selectedGradeLevel
+                                            ? AppTheme.resourceBlue
+                                            : AppTheme.menuTextOf(context),
+                                      ),
                                       overflow: TextOverflow.ellipsis,
                                     ),
                                   ),
@@ -355,13 +368,13 @@ class _DemographicScreenState extends State<DemographicScreen>
     );
   }
 
-  InputDecoration _inputDecoration(String hint) {
+  InputDecoration _inputDecoration(String hint, {Color? fillColor}) {
     return InputDecoration(
       hintText: hint,
       hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
       filled: true,
-      fillColor: const Color(0xFFF5F7FF),
+      fillColor: fillColor ?? const Color(0xFFF5F7FF),
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(12),
         borderSide: BorderSide(color: Colors.grey.shade200),

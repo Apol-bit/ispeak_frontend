@@ -1,3 +1,4 @@
+import '../widgets/fixed_back_layout.dart';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../config/api_config.dart';
@@ -140,54 +141,35 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: Column(
-        children: [
-          Container(
-            width: double.infinity,
-            color: AppTheme.accentColor,
-            padding: EdgeInsets.only(
-              top: MediaQuery.of(context).padding.top + 20,
-              left: 24,
-              right: 24,
-              bottom: 32,
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                GestureDetector(
-                  onTap: () => Navigator.pop(context),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: const [
-                      Icon(Icons.chevron_left, color: Colors.white, size: 26),
-                      SizedBox(width: 4),
-                      Text(
-                        'Back',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                        ),
+      body: FixedBackLayout(
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                width: double.infinity,
+                color: AppTheme.accentColor,
+                padding: EdgeInsets.only(
+                  top: 20,
+                  left: 24,
+                  right: 24,
+                  bottom: 32,
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: 24),
+                    const Text(
+                      'Edit Profile',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 32,
+                        fontWeight: FontWeight.bold,
                       ),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: 24),
-                const Text(
-                  'Edit Profile',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ],
-            ),
-          ),
-
-          Expanded(
-            child: SingleChildScrollView(
-              child: Padding(
+              ),
+              Padding(
                 padding: const EdgeInsets.all(24),
                 child: Form(
                   key: _formKey,
@@ -416,10 +398,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             DropdownButtonFormField<String>(
                               isExpanded: true,
                               initialValue: _selectedGender,
+                              dropdownColor: AppTheme.menuSurfaceOf(context),
+                              style: TextStyle(
+                                color: AppTheme.menuTextOf(context),
+                                fontFamily: AppTheme.fontFamily,
+                              ),
                               hint: const Text('Select Gender'),
                               decoration: InputDecoration(
                                 filled: true,
-                                fillColor: Colors.grey[50],
+                                fillColor: AppTheme.menuSurfaceOf(context),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 14,
@@ -450,6 +437,11 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                       value: g,
                                       child: Text(
                                         g,
+                                        style: TextStyle(
+                                          color: g == _selectedGender
+                                              ? AppTheme.resourceBlue
+                                              : AppTheme.menuTextOf(context),
+                                        ),
                                         overflow: TextOverflow.ellipsis,
                                       ),
                                     ),
@@ -474,10 +466,15 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                             DropdownButtonFormField<String>(
                               isExpanded: true,
                               initialValue: _selectedGradeLevel,
+                              dropdownColor: AppTheme.menuSurfaceOf(context),
+                              style: TextStyle(
+                                color: AppTheme.menuTextOf(context),
+                                fontFamily: AppTheme.fontFamily,
+                              ),
                               hint: const Text('Select Grade / Level'),
                               decoration: InputDecoration(
                                 filled: true,
-                                fillColor: Colors.grey[50],
+                                fillColor: AppTheme.menuSurfaceOf(context),
                                 contentPadding: const EdgeInsets.symmetric(
                                   horizontal: 16,
                                   vertical: 14,
@@ -517,6 +514,13 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                                           value: g,
                                           child: Text(
                                             g,
+                                            style: TextStyle(
+                                              color: g == _selectedGradeLevel
+                                                  ? AppTheme.resourceBlue
+                                                  : AppTheme.menuTextOf(
+                                                      context,
+                                                    ),
+                                            ),
                                             overflow: TextOverflow.ellipsis,
                                           ),
                                         ),
@@ -594,9 +598,9 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                   ),
                 ),
               ),
-            ),
+            ],
           ),
-        ],
+        ),
       ),
     );
   }

@@ -1,13 +1,17 @@
+import '../widgets/feedback_tips.dart';
+import '../widgets/fixed_back_layout.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class ResultPage extends StatelessWidget {
+  final VoidCallback? onBack;
   final VoidCallback? onBackToHome;
   final VoidCallback? onPracticeAgain;
   final Map<String, dynamic>? sessionData;
 
   const ResultPage({
     super.key,
+    this.onBack,
     this.onBackToHome,
     this.onPracticeAgain,
     this.sessionData,
@@ -23,24 +27,27 @@ class ResultPage extends StatelessWidget {
 
   String _getScoreLabel(num score) {
     if (score == 0) return 'Needs Work';
-    if (score >= 90) return 'Excellent 🎉';
-    if (score >= 75) return 'Good 👍';
-    if (score >= 60) return 'Fair 😐';
-    return 'Needs Work 📈';
+    if (score >= 90) return 'Excellent';
+    if (score >= 75) return 'Good';
+    if (score >= 60) return 'Fair';
+    return 'Needs Work';
   }
 
-  String _feedback(String metric, String fallback) {
+  Object _feedback(String metric, String fallback) {
     final feedback = sessionData?['analysisFeedback'];
     final value = feedback is Map ? feedback[metric] : null;
-    return value is String && value.trim().isNotEmpty ? value : fallback;
+    return value is List && value.isNotEmpty ||
+            value is String && value.trim().isNotEmpty
+        ? value as Object
+        : fallback;
   }
 
-  String _getPaceFeedback(int score, int wpm) => _feedback(
+  Object _getPaceFeedback(int score, int wpm) => _feedback(
     'pace',
     'Recorded pace: $wpm words per minute. Detailed findings are unavailable for this saved session.',
   );
 
-  String _getClarityFeedback(
+  Object _getClarityFeedback(
     int score,
     int fillers,
     bool available,
@@ -51,7 +58,7 @@ class ResultPage extends StatelessWidget {
         : 'Filler-word analysis was unavailable for this session.',
   );
 
-  String _getEnergyFeedback(int score) => _feedback(
+  Object _getEnergyFeedback(int score) => _feedback(
     'energy',
     'Detailed energy and pitch findings are unavailable for this saved session.',
   );
@@ -120,21 +127,28 @@ class ResultPage extends StatelessWidget {
         transcript == 'No transcription available.';
     if (invalidRecording) {
       return Scaffold(
-        appBar: AppBar(title: const Text('Recording not evaluated')),
-        body: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Text(
-                'This recording does not contain enough usable speech for a reliable assessment. Please record a short sentence and try again.',
-              ),
-              const SizedBox(height: 24),
-              ElevatedButton(
-                onPressed: onPracticeAgain ?? onBackToHome,
-                child: const Text('Practice Again'),
-              ),
-            ],
+        body: FixedBackLayout(
+          onBack: onBack ?? onPracticeAgain ?? onBackToHome,
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Recording not evaluated',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                const Text(
+                  'This recording does not contain enough usable speech for a reliable assessment. Please record a short sentence and try again.',
+                ),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: onPracticeAgain ?? onBackToHome,
+                  child: const Text('Practice Again'),
+                ),
+              ],
+            ),
           ),
         ),
       );
@@ -144,244 +158,206 @@ class ResultPage extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: const Color(0xFFF5F5F5),
-      body: SingleChildScrollView(
-        child: Column(
-          children: [
-            Container(
-              color: const Color(0xFF3F7CF4),
-              child: SafeArea(
-                bottom: false,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      GestureDetector(
-                        onTap: onPracticeAgain ?? onBackToHome,
-                        child: const Row(
-                          children: [
-                            Icon(
-                              Icons.arrow_back_ios,
-                              color: Colors.white,
-                              size: 16,
-                            ),
-                            Text(
-                              'Back',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 16,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(height: 24),
+      body: FixedBackLayout(
+        onBack: onBack ?? onPracticeAgain ?? onBackToHome,
+        child: SingleChildScrollView(
+          child: Column(
+            children: [
+              Container(
+                color: const Color(0xFF3F7CF4),
+                child: SafeArea(
+                  bottom: false,
+                  child: Padding(
+                    padding: const EdgeInsets.fromLTRB(20, 20, 20, 40),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const SizedBox(height: 24),
 
-                      // --- Date and Time Display ---
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: Row(
-                          children: [
-                            Icon(
-                              Icons.calendar_today,
-                              color: Colors.white70,
-                              size: 16,
-                            ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                _formatDateTime(createdAt),
-                                style: const TextStyle(
-                                  color: Colors.white70,
-                                  fontSize: 13,
-                                  fontWeight: FontWeight.w500,
-                                ),
+                        // --- Date and Time Display ---
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: Row(
+                            children: [
+                              Icon(
+                                Icons.calendar_today,
+                                color: Colors.white70,
+                                size: 16,
                               ),
-                            ),
-                          ],
-                        ),
-                      ),
-
-                      Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.symmetric(vertical: 30),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          boxShadow: const [
-                            BoxShadow(
-                              color: Colors.black12,
-                              blurRadius: 10,
-                              offset: Offset(0, 5),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          children: [
-                            Text(
-                              overallScore.toString(),
-                              style: TextStyle(
-                                fontSize: 56,
-                                fontWeight: FontWeight.bold,
-                                color: overallColor,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            const Text(
-                              'Overall Score',
-                              style: TextStyle(
-                                color: Colors.grey,
-                                fontSize: 16,
-                              ),
-                            ),
-                            if (isPartial)
-                              const Padding(
-                                padding: EdgeInsets.symmetric(
-                                  horizontal: 16,
-                                  vertical: 8,
-                                ),
+                              const SizedBox(width: 8),
+                              Expanded(
                                 child: Text(
-                                  'Partial assessment: some analysis components are unavailable.',
-                                  textAlign: TextAlign.center,
-                                  style: TextStyle(
-                                    color: Colors.grey,
-                                    fontSize: 12,
+                                  _formatDateTime(createdAt),
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w500,
                                   ),
                                 ),
                               ),
-                            const SizedBox(height: 16),
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 16,
-                                vertical: 8,
+                            ],
+                          ),
+                        ),
+
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 30),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Colors.black12,
+                                blurRadius: 10,
+                                offset: Offset(0, 5),
                               ),
-                              decoration: BoxDecoration(
-                                color: overallColor.withValues(alpha: 0.15),
-                                borderRadius: BorderRadius.circular(20),
-                              ),
-                              child: Text(
-                                _getScoreLabel(overallScore),
+                            ],
+                          ),
+                          child: Column(
+                            children: [
+                              Text(
+                                overallScore.toString(),
                                 style: TextStyle(
-                                  color: overallColor,
+                                  fontSize: 56,
                                   fontWeight: FontWeight.bold,
-                                  fontSize: 14,
+                                  color: overallColor,
                                 ),
                               ),
-                            ),
-                          ],
+                              const SizedBox(height: 4),
+                              const Text(
+                                'Overall Score',
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              if (isPartial)
+                                const Padding(
+                                  padding: EdgeInsets.symmetric(
+                                    horizontal: 16,
+                                    vertical: 8,
+                                  ),
+                                  child: Text(
+                                    'Partial assessment: some analysis components are unavailable.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                    ),
+                                  ),
+                                ),
+                              const SizedBox(height: 16),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                  horizontal: 16,
+                                  vertical: 8,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: overallColor.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(20),
+                                ),
+                                child: Text(
+                                  _getScoreLabel(overallScore),
+                                  style: TextStyle(
+                                    color: overallColor,
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
-            ),
 
-            Padding(
-              padding: const EdgeInsets.all(20),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Performance Breakdown',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black54,
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildMetricCard(
-                    icon: Icons.volume_up_outlined,
-                    title: 'Pace',
-                    subtitle: '$wpmDisplay words per minute',
-                    score: paceScore,
-                    feedback: _getPaceFeedback(
-                      paceScore,
-                      wpmDisplay,
-                    ), // <-- UPDATED
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildMetricCard(
-                    icon: Icons.chat_bubble_outline,
-                    title: 'Clarity',
-                    subtitle: fillerAnalysisAvailable
-                        ? '$fillerDisplay filler words detected'
-                        : 'Filler-word analysis unavailable',
-                    score: clarityScore,
-                    feedback: _getClarityFeedback(
-                      clarityScore,
-                      fillerDisplay,
-                      fillerAnalysisAvailable,
-                    ), // <-- UPDATED
-                  ),
-                  const SizedBox(height: 16),
-
-                  _buildMetricCard(
-                    icon: Icons.bolt,
-                    title: 'Energy',
-                    subtitle: 'Speech volume and vocal intensity',
-                    score: energyScore,
-                    feedback: _getEnergyFeedback(energyScore), // <-- UPDATED
-                  ),
-
-                  const SizedBox(height: 32),
-
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accentColor,
-                        foregroundColor: AppTheme.backgroundColor,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        elevation: 0,
-                      ),
-                      onPressed: onPracticeAgain ?? onBackToHome,
-                      child: const Text(
-                        'Practice Again',
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                        ),
+              Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Performance Breakdown',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black54,
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 12),
-                  SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton(
-                      style: OutlinedButton.styleFrom(
-                        side: const BorderSide(
-                          color: Color(0xFF3F7CF4),
-                          width: 1.5,
+                    const SizedBox(height: 16),
+
+                    _buildMetricCard(
+                      icon: Icons.volume_up_outlined,
+                      title: 'Pace',
+                      subtitle: '$wpmDisplay words per minute',
+                      score: paceScore,
+                      feedback: _getPaceFeedback(
+                        paceScore,
+                        wpmDisplay,
+                      ), // <-- UPDATED
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildMetricCard(
+                      icon: Icons.chat_bubble_outline,
+                      title: 'Clarity',
+                      subtitle: fillerAnalysisAvailable
+                          ? '$fillerDisplay filler words detected'
+                          : 'Filler-word analysis unavailable',
+                      score: clarityScore,
+                      feedback: _getClarityFeedback(
+                        clarityScore,
+                        fillerDisplay,
+                        fillerAnalysisAvailable,
+                      ), // <-- UPDATED
+                    ),
+                    const SizedBox(height: 16),
+
+                    _buildMetricCard(
+                      icon: Icons.bolt,
+                      title: 'Energy',
+                      subtitle: 'Speech volume and vocal intensity',
+                      score: energyScore,
+                      feedback: _getEnergyFeedback(energyScore), // <-- UPDATED
+                    ),
+
+                    if (data['tips'] != null) ...[
+                      const SizedBox(height: 16),
+                      FeedbackTips(tips: data['tips']),
+                    ],
+                    const SizedBox(height: 32),
+
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accentColor,
+                          foregroundColor: AppTheme.backgroundColor,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
+                          elevation: 0,
                         ),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                      ),
-                      onPressed: onBackToHome,
-                      child: const Text(
-                        'Back to Home',
-                        style: TextStyle(
-                          color: Color(0xFF3F7CF4),
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
+                        onPressed: onPracticeAgain ?? onBackToHome,
+                        child: const Text(
+                          'Practice Again',
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                  const SizedBox(height: 40),
-                ],
+                    const SizedBox(height: 40),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -392,7 +368,7 @@ class ResultPage extends StatelessWidget {
     required String title,
     required String subtitle,
     required int score,
-    required String feedback,
+    required Object feedback,
   }) {
     final Color scoreColor = _getScoreColor(score);
     final double progressValue = (score / 100.0).clamp(0.0, 1.0);
@@ -454,24 +430,7 @@ class ResultPage extends StatelessWidget {
             borderRadius: BorderRadius.circular(10),
           ),
           const SizedBox(height: 12),
-          Row(
-            children: [
-              Icon(
-                score == 0
-                    ? Icons.hourglass_empty
-                    : (score >= 60 ? Icons.check : Icons.warning_amber_rounded),
-                size: 14,
-                color: Colors.grey,
-              ),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text(
-                  feedback,
-                  style: const TextStyle(color: Colors.grey, fontSize: 12),
-                ),
-              ),
-            ],
-          ),
+          FeedbackTips(tips: feedback),
         ],
       ),
     );

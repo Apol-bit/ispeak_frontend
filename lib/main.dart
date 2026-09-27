@@ -13,14 +13,12 @@ import 'transitions/page_transitions.dart';
 import 'config/api_config.dart';
 import 'services/api_client.dart';
 import 'services/auth_service.dart';
+import 'widgets/mobile_system_ui.dart';
 
 final navigatorKey = GlobalKey<NavigatorState>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
-  // --- EDGE-TO-EDGE UI CONFIGURATION ---
-  SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
@@ -57,12 +55,27 @@ class MyApp extends StatelessWidget {
       navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       title: 'iSpeak',
+      builder: (context, child) => MobileSystemUi(child: child!),
       theme: ThemeData(
         useMaterial3: true,
+        brightness: Brightness.light,
+        colorScheme: AppTheme.colorScheme(Brightness.light),
         primaryColor: AppTheme.primaryColor,
+        canvasColor: AppTheme.lightMenuSurface,
         scaffoldBackgroundColor: AppTheme.backgroundColor,
         fontFamily: AppTheme.fontFamily,
         textTheme: AppTheme.textTheme,
+        popupMenuTheme: AppTheme.popupMenuTheme(Brightness.light),
+        dropdownMenuTheme: DropdownMenuThemeData(
+          menuStyle: AppTheme.menuStyle(Brightness.light),
+        ),
+        menuTheme: MenuThemeData(style: AppTheme.menuStyle(Brightness.light)),
+        menuButtonTheme: MenuButtonThemeData(
+          style: AppTheme.menuButtonStyle(Brightness.light),
+        ),
+        hoverColor: AppTheme.resourceBlue.withValues(alpha: 0.08),
+        focusColor: AppTheme.resourceBlue.withValues(alpha: 0.08),
+        highlightColor: AppTheme.resourceBlue.withValues(alpha: 0.08),
         snackBarTheme: const SnackBarThemeData(
           behavior: SnackBarBehavior.floating,
         ),
@@ -100,7 +113,9 @@ class _SessionGateState extends State<SessionGate> {
       future: _session,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator()),
+          );
         }
         final user = snapshot.data;
         if (user == null) return const SplashScreen();
@@ -123,9 +138,11 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
   int _currentIndex = 0;
   Map<String, dynamic>? _currentSessionData;
   int _refreshCount = 0;
+  int _recordingResetVersion = 0;
 
   void _switchTab(int index) {
     setState(() {
+      if (_currentIndex == 3 && index != 3) _recordingResetVersion++;
       _currentIndex = index;
       _refreshCount++;
     });
@@ -195,10 +212,12 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         userId: widget.userId,
         refreshKey: _refreshCount,
         onStartPractice: () => _switchTab(1),
+        onBackToHome: () => _switchTab(0),
         onLearningResources: () => _switchTab(4),
       ),
       PracticePage(
         userId: widget.userId,
+        resetVersion: _recordingResetVersion,
         onFinish: (data) {
           _currentSessionData = data;
           _switchTab(3);
@@ -208,6 +227,7 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
         userId: widget.userId,
         refreshKey: _refreshCount,
         onStartPractice: () => _switchTab(1),
+        onBackToHome: () => _switchTab(0),
       ),
       ResultPage(
         sessionData: _currentSessionData,
@@ -216,6 +236,8 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       ),
       LearningResourcesScreen(
         userId: widget.userId,
+        isActive: _currentIndex == 4,
+        refreshKey: _refreshCount,
         onBack: () => _switchTab(0),
       ),
     ];
@@ -224,7 +246,21 @@ class _MainPageState extends State<MainPage> with WidgetsBindingObserver {
       extendBody: true,
       resizeToAvoidBottomInset: true,
       backgroundColor: const Color(0xFFF5F5F5),
-      body: IndexedStack(index: _currentIndex, children: pages),
+      body: PopScope(
+        canPop: _currentIndex != 3 && _currentIndex != 4,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && (_currentIndex == 3 || _currentIndex == 4)) {
+            _switchTab(0);
+          }
+        },
+        child: IndexedStack(
+          index: _currentIndex,
+          children: [
+            for (var index = 0; index < pages.length; index++)
+              TickerMode(enabled: index == _currentIndex, child: pages[index]),
+          ],
+        ),
+      ),
       floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
       floatingActionButton: hideBars
           ? null

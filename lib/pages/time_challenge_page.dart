@@ -1,3 +1,6 @@
+import '../services/temporary_recording.dart';
+import '../widgets/resource_access_check.dart';
+import '../widgets/fixed_back_layout.dart';
 import 'dart:async';
 import 'dart:io';
 import 'dart:convert';
@@ -63,6 +66,14 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
   Future<void> _start() async {
     try {
+      if (!await checkResourceAccess(
+        context,
+        widget.userId,
+        widget.challenge as Map,
+      )) {
+        return;
+      }
+      if (!mounted) return;
       if (await _audioRecorder.hasPermission()) {
         _timer?.cancel();
 
@@ -105,23 +116,8 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
     }
   }
 
-  Future<void> _reset() async {
-    _timer?.cancel();
-    await _audioRecorder.stop();
-    if (_audioPath != null) {
-      final file = File(_audioPath!);
-      if (await file.exists()) await file.delete();
-    }
-    if (!mounted) return;
-
-    setState(() {
-      _state = _PracticeState.ready;
-      _elapsedSeconds = 0;
-      _audioPath = null;
-    });
-  }
-
   Future<void> _finishSession() async {
+    if (_isUploading) return;
     _timer?.cancel();
     setState(() => _isUploading = true);
 
@@ -149,19 +145,32 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         if (response.statusCode == 200 || response.statusCode == 201) {
           final resultData = jsonDecode(response.body);
           if (mounted) {
-            Navigator.of(context).push(
+            await Navigator.of(context).push(
               MaterialPageRoute(
                 builder: (_) => ResultPage(
                   sessionData: resultData,
-                  onBackToHome: () =>
-                      Navigator.popUntil(context, (r) => r.isFirst),
+                  onBackToHome: () {
+                    Navigator.popUntil(context, (r) => r.isFirst);
+                    widget.onBackToHome?.call();
+                  },
                   onPracticeAgain: () {
                     Navigator.pop(context); // Pops the ResultPage
-                    _reset(); // Resets the TimedChallengePage for another try
                   },
                 ),
               ),
             );
+            // The upload is saved. Every Analysis exit clears only this draft.
+            final path = _audioPath;
+            _audioPath = null;
+            _timer?.cancel();
+            if (mounted) {
+              setState(() {
+                _isUploading = false;
+                _state = _PracticeState.ready;
+                _elapsedSeconds = 0;
+              });
+            }
+            await discardTemporaryRecording(path);
           }
         } else {
           if (mounted) {
@@ -178,7 +187,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         ).showSnackBar(const SnackBar(content: Text('Connection Error')));
       }
     }
-    setState(() => _isUploading = false);
+    if (mounted) setState(() => _isUploading = false);
   }
 
   String _fmt(int s) {
@@ -243,34 +252,38 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         child: SafeArea(
           top: false,
           bottom: true,
-          child: Column(
-            children: [
-              _buildHeader(context),
-              Expanded(
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
-                  child: Column(
-                    children: [
-                      if (isReady) ...[
-                        _buildChallengeInfoCard(),
-                        const SizedBox(height: 16),
+          child: FixedBackLayout(
+            onBack: widget.onBack,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(context),
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 30),
+                    child: Column(
+                      children: [
+                        if (isReady) ...[
+                          _buildChallengeInfoCard(),
+                          const SizedBox(height: 16),
+                        ],
+
+                        if (!isReady) ...[
+                          _buildLanguageBanner(),
+                          const SizedBox(height: 14),
+                        ],
+
+                        // ── NEW CLEAN RECORD CARD ──
+                        _buildRecordCard(),
+
+                        const SizedBox(height: 40),
                       ],
-
-                      if (!isReady) ...[
-                        _buildLanguageBanner(),
-                        const SizedBox(height: 14),
-                      ],
-
-                      // ── NEW CLEAN RECORD CARD ──
-                      _buildRecordCard(),
-
-                      const SizedBox(height: 40),
-                    ],
+                    ),
                   ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -380,7 +393,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   }
 
   Widget _buildHeader(BuildContext context) {
-    final double topPadding = MediaQuery.of(context).padding.top;
+    const double topPadding = 0;
     return Container(
       width: double.infinity,
       padding: EdgeInsets.fromLTRB(16, topPadding + 14, 16, 18),
@@ -393,26 +406,7 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
             runSpacing: 8,
             alignment: WrapAlignment.spaceBetween,
             crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              GestureDetector(
-                onTap: () {
-                  _timer?.cancel();
-                  widget.onBack?.call();
-                },
-                child: const Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(Icons.chevron_left, color: Colors.white, size: 24),
-                    SizedBox(width: 4),
-                    Text(
-                      'Back',
-                      style: TextStyle(color: Colors.white, fontSize: 16),
-                    ),
-                  ],
-                ),
-              ),
-              _buildLanguageToggle(),
-            ],
+            children: [_buildLanguageToggle()],
           ),
           const SizedBox(height: 14),
           const Text(

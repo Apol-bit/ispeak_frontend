@@ -118,7 +118,13 @@ class AuthService {
           )
           .timeout(const Duration(seconds: 10));
       if (response.statusCode != 200) {
-        await clearSession();
+        // A transient backend failure does not invalidate saved credentials.
+        // Return no validated user until the backend can verify the session.
+        if (response.statusCode == 401 ||
+            (response.statusCode == 403 &&
+                jsonDecode(response.body)['message'] == 'This account is not active')) {
+          await clearSession();
+        }
         return null;
       }
       final data = _decode(response.body);

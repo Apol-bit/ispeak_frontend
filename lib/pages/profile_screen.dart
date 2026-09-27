@@ -1,3 +1,4 @@
+import '../widgets/fixed_back_layout.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -56,7 +57,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         Uri.parse('${ApiConfig.baseUrl}/user/${widget.userId}'),
       );
       final statsRes = await ApiClient.get(
-        Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}'),
+        Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}?view=compact'),
       );
       debugPrint(
         'Profile: userRes=${userRes.statusCode}, statsRes=${statsRes.statusCode}',
@@ -172,18 +173,29 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void _logout() async {
     final bool? confirmed = await showDialog<bool>(
       context: context,
+      barrierColor: const Color.fromRGBO(15, 18, 28, 0.5),
       builder: (BuildContext dialogContext) {
         return AlertDialog(
-          title: const Text('Log Out'),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.transparent,
+          title: const Text(
+            'Log Out',
+            style: TextStyle(color: AppTheme.bodyInk),
+          ),
           content: const Text('Are you sure you want to log out?'),
           actions: [
             TextButton(
+              style: TextButton.styleFrom(foregroundColor: AppTheme.bodyInk),
               onPressed: () => Navigator.pop(dialogContext, false),
               child: const Text('Cancel'),
             ),
-            TextButton(
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.logoutRed,
+                foregroundColor: Colors.white,
+              ),
               onPressed: () => Navigator.pop(dialogContext, true),
-              child: const Text('Log Out', style: TextStyle(color: Colors.red)),
+              child: const Text('Log Out'),
             ),
           ],
         );
@@ -207,408 +219,403 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[100],
-      body: SingleChildScrollView(
-        child: Stack(
-          children: [
-            Container(
-              height: MediaQuery.of(context).size.height * 0.35,
-              width: double.infinity,
-              color: AppTheme.accentColor,
-            ),
+      body: FixedBackLayout(
+        onBack: null,
+        child: SingleChildScrollView(
+          child: Stack(
+            children: [
+              Container(
+                height: MediaQuery.of(context).size.height * 0.35,
+                width: double.infinity,
+                color: AppTheme.accentColor,
+              ),
 
-            SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    GestureDetector(
-                      onTap: () => Navigator.pop(context),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: const [
-                          Icon(
-                            Icons.chevron_left,
-                            color: Colors.white,
-                            size: 26,
-                          ),
-                          SizedBox(width: 4),
-                          Text(
-                            'Back',
-                            style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
+              SafeArea(
+                child: Padding(
+                  padding: const EdgeInsets.all(24),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 20),
+
+                      const Text(
+                        'Profile',
+                        style: TextStyle(
+                          fontSize: 28,
+                          fontFamily: 'Inter',
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      const Text(
+                        'Account settings',
+                        style: TextStyle(fontSize: 14, color: Colors.white70),
+                      ),
+
+                      const SizedBox(height: 32),
+
+                      Container(
+                        padding: const EdgeInsets.all(24),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withAlpha(
+                                (0.08 * 255).round(),
+                              ),
+                              blurRadius: 12,
+                              offset: const Offset(0, 4),
                             ),
-                          ),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 20),
-
-                    const Text(
-                      'Profile',
-                      style: TextStyle(
-                        fontSize: 28,
-                        fontFamily: 'Inter',
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    const Text(
-                      'Account settings',
-                      style: TextStyle(fontSize: 14, color: Colors.white70),
-                    ),
-
-                    const SizedBox(height: 32),
-
-                    Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withAlpha((0.08 * 255).round()),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ],
-                      ),
-                      child: Column(
-                        children: [
-                          Container(
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              color: AppTheme.accentColor,
-                              borderRadius: BorderRadius.circular(40),
-                            ),
-                            child: Center(
-                              child: _isLoading
-                                  ? const CircularProgressIndicator(
-                                      color: Colors.white,
-                                    )
-                                  : Text(
-                                      userInitials,
-                                      style: const TextStyle(
-                                        fontSize: 32,
-                                        fontWeight: FontWeight.bold,
+                          ],
+                        ),
+                        child: Column(
+                          children: [
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                color: AppTheme.accentColor,
+                                borderRadius: BorderRadius.circular(40),
+                              ),
+                              child: Center(
+                                child: _isLoading
+                                    ? const CircularProgressIndicator(
                                         color: Colors.white,
+                                      )
+                                    : Text(
+                                        userInitials,
+                                        style: const TextStyle(
+                                          fontSize: 32,
+                                          fontWeight: FontWeight.bold,
+                                          color: Colors.white,
+                                        ),
                                       ),
-                                    ),
-                            ),
-                          ),
-
-                          const SizedBox(height: 16),
-
-                          Text(
-                            username,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.black87,
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            _isLoading ? '-' : '$firstName $lastName',
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 13,
-                              color: Colors.grey[700],
-                            ),
-                          ),
-
-                          const SizedBox(height: 4),
-
-                          Text(
-                            userEmail,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.grey[500],
-                            ),
-                          ),
-
-                          const SizedBox(height: 20),
-
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                            children: [
-                              Column(
-                                children: [
-                                  Text(
-                                    _isLoading ? '-' : '$sessions',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Sessions',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
                               ),
-                              Column(
-                                children: [
-                                  Text(
-                                    _isLoading ? '-' : '$avgScore',
-                                    style: TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: _getScoreColor(avgScore),
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Avg Score',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              Column(
-                                children: [
-                                  Text(
-                                    _isLoading ? '-' : '$dayStreak',
-                                    style: const TextStyle(
-                                      fontSize: 18,
-                                      fontWeight: FontWeight.bold,
-                                      color: AppTheme.primaryColor,
-                                    ),
-                                  ),
-                                  const SizedBox(height: 4),
-                                  Text(
-                                    'Day Streak',
-                                    style: TextStyle(
-                                      fontSize: 12,
-                                      color: Colors.grey[600],
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          if (!_isLoading &&
-                              (userAge != null ||
-                                  userGender.isNotEmpty ||
-                                  userGradeLevel.isNotEmpty)) ...[
+                            ),
+
                             const SizedBox(height: 16),
-                            Divider(color: Colors.grey[200], thickness: 1),
-                            const SizedBox(height: 12),
+
+                            Text(
+                              username,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Text(
+                              _isLoading ? '-' : '$firstName $lastName',
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: Colors.grey[700],
+                              ),
+                            ),
+
+                            const SizedBox(height: 4),
+
+                            Text(
+                              userEmail,
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
+                              textAlign: TextAlign.center,
+                              style: TextStyle(
+                                fontSize: 12,
+                                color: Colors.grey[500],
+                              ),
+                            ),
+
+                            const SizedBox(height: 20),
+
                             Row(
                               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
-                                if (userAge != null)
-                                  Expanded(
-                                    child: _buildDemographicItem(
-                                      'Age',
-                                      '$userAge',
-                                      Icons.calendar_today_outlined,
-                                    ),
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        _isLoading ? '-' : '$sessions',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Sessions',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                if (userGender.isNotEmpty)
-                                  Expanded(
-                                    child: _buildDemographicItem(
-                                      'Gender',
-                                      userGender,
-                                      Icons.face_outlined,
-                                    ),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        _isLoading ? '-' : '$avgScore',
+                                        style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: _getScoreColor(avgScore),
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Avg Score',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
-                                if (userGradeLevel.isNotEmpty)
-                                  Expanded(
-                                    child: _buildDemographicItem(
-                                      'Grade',
-                                      userGradeLevel,
-                                      Icons.school_outlined,
-                                    ),
+                                ),
+                                Expanded(
+                                  child: Column(
+                                    children: [
+                                      Text(
+                                        _isLoading ? '-' : '$dayStreak',
+                                        style: const TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.bold,
+                                          color: AppTheme.primaryColor,
+                                        ),
+                                      ),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        'Day Streak',
+                                        textAlign: TextAlign.center,
+                                        style: TextStyle(
+                                          fontSize: 12,
+                                          color: Colors.grey[600],
+                                        ),
+                                      ),
+                                    ],
                                   ),
+                                ),
                               ],
                             ),
+                            if (!_isLoading &&
+                                (userAge != null ||
+                                    userGender.isNotEmpty ||
+                                    userGradeLevel.isNotEmpty)) ...[
+                              const SizedBox(height: 16),
+                              Divider(color: Colors.grey[200], thickness: 1),
+                              const SizedBox(height: 12),
+                              Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  if (userAge != null)
+                                    Expanded(
+                                      child: _buildDemographicItem(
+                                        'Age',
+                                        '$userAge',
+                                        Icons.calendar_today_outlined,
+                                      ),
+                                    ),
+                                  if (userGender.isNotEmpty)
+                                    Expanded(
+                                      child: _buildDemographicItem(
+                                        'Gender',
+                                        userGender,
+                                        Icons.face_outlined,
+                                      ),
+                                    ),
+                                  if (userGradeLevel.isNotEmpty)
+                                    Expanded(
+                                      child: _buildDemographicItem(
+                                        'Grade',
+                                        userGradeLevel,
+                                        Icons.school_outlined,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ],
                           ],
-                        ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.info_outline,
-                                color: AppTheme.accentColor,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Score Guide',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.info_outline,
+                                  color: AppTheme.accentColor,
+                                  size: 20,
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
-
-                          _buildScoreGuideItem(
-                            '95',
-                            'Excellent',
-                            '85-100 points',
-                            Colors.green,
-                            '🎉',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildScoreGuideItem(
-                            '76',
-                            'Good',
-                            '70-84 points',
-                            Colors.amber,
-                            '👍',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildScoreGuideItem(
-                            '58',
-                            'Fair',
-                            '50-69 points',
-                            Colors.orange,
-                            '💪',
-                          ),
-                          const SizedBox(height: 12),
-                          _buildScoreGuideItem(
-                            '42',
-                            'Needs Work',
-                            '0-49 points',
-                            Colors.red,
-                            '📈',
-                          ),
-                          const SizedBox(height: 12),
-                        ],
-                      ),
-                    ),
-
-                    const SizedBox(height: 28),
-
-                    Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.grey.shade200),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              const Icon(
-                                Icons.stars_outlined,
-                                color: AppTheme.accentColor,
-                                size: 20,
-                              ),
-                              const SizedBox(width: 8),
-                              const Text(
-                                'Level Guide',
-                                style: TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.black87,
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Score Guide',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
                                 ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 20),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
 
-                          _buildLevelGuideItem(
-                            'Advanced',
-                            '80 - 100 average score',
-                            const Color(0xFFB45FD4),
-                            Icons.emoji_events_outlined,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildLevelGuideItem(
-                            'Intermediate',
-                            '60 - 79 average score',
-                            const Color(0xFF3F7CF4),
-                            Icons.trending_up,
-                          ),
-                          const SizedBox(height: 12),
-                          _buildLevelGuideItem(
-                            'Beginner',
-                            '0 - 59 average score',
-                            const Color(0xFF3FBD7A),
-                            Icons.spa_outlined,
-                          ),
-                          const SizedBox(height: 12),
-                        ],
+                            _buildScoreGuideItem(
+                              '95',
+                              'Excellent',
+                              '85-100 points',
+                              Colors.green,
+                              '🎉',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildScoreGuideItem(
+                              '76',
+                              'Good',
+                              '70-84 points',
+                              Colors.amber,
+                              '👍',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildScoreGuideItem(
+                              '58',
+                              'Fair',
+                              '50-69 points',
+                              Colors.orange,
+                              '💪',
+                            ),
+                            const SizedBox(height: 12),
+                            _buildScoreGuideItem(
+                              '42',
+                              'Needs Work',
+                              '0-49 points',
+                              Colors.red,
+                              '📈',
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 28),
+                      const SizedBox(height: 28),
 
-                    _buildOptionTile(
-                      icon: Icons.edit,
-                      title: 'Edit Profile',
-                      subtitle: 'Update your information',
-                      onTap: _goToEditProfile,
-                    ),
+                      Container(
+                        padding: const EdgeInsets.all(20),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: Colors.grey.shade200),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              children: [
+                                const Icon(
+                                  Icons.stars_outlined,
+                                  color: AppTheme.accentColor,
+                                  size: 20,
+                                ),
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'Level Guide',
+                                  style: TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 20),
 
-                    const SizedBox(height: 12),
-
-                    _buildOptionTile(
-                      icon: Icons.logout,
-                      title: 'Log Out',
-                      subtitle: null,
-                      onTap: _logout,
-                      isLogout: true,
-                    ),
-
-                    const SizedBox(height: 24),
-
-                    Center(
-                      child: Text(
-                        'iSpeak v1.0.0',
-                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                            _buildLevelGuideItem(
+                              'Advanced',
+                              '80 - 100 average score',
+                              const Color(0xFFB45FD4),
+                              Icons.emoji_events_outlined,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildLevelGuideItem(
+                              'Intermediate',
+                              '60 - 79 average score',
+                              const Color(0xFF3F7CF4),
+                              Icons.trending_up,
+                            ),
+                            const SizedBox(height: 12),
+                            _buildLevelGuideItem(
+                              'Beginner',
+                              '0 - 59 average score',
+                              const Color(0xFF3FBD7A),
+                              Icons.spa_outlined,
+                            ),
+                            const SizedBox(height: 12),
+                          ],
+                        ),
                       ),
-                    ),
 
-                    const SizedBox(height: 20),
-                  ],
+                      const SizedBox(height: 28),
+
+                      _buildOptionTile(
+                        icon: Icons.edit,
+                        title: 'Edit Profile',
+                        subtitle: 'Update your information',
+                        onTap: _goToEditProfile,
+                      ),
+
+                      const SizedBox(height: 12),
+
+                      _buildOptionTile(
+                        icon: Icons.logout,
+                        title: 'Log Out',
+                        subtitle: null,
+                        onTap: _logout,
+                        isLogout: true,
+                      ),
+
+                      const SizedBox(height: 24),
+
+                      Center(
+                        child: Text(
+                          'iSpeak v1.0.0',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+                    ],
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
