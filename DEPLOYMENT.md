@@ -3,6 +3,11 @@
 This document prepares the four iSpeak components for deployment. It contains
 no credentials and none of the commands below deploy an environment.
 
+For the current staged Atlas/R2/Railway/Pages rollout, use the canonical
+[cloud deployment runbook](../ispeak_backend/CLOUD_DEPLOYMENT_PLAN.md).
+It supersedes historical readiness statements below. Live verification and team
+Android signing remain pending; setup readiness does not authorize distribution.
+
 ## 1. Required infrastructure
 
 - An HTTPS API domain for the Node service.
@@ -11,20 +16,19 @@ no credentials and none of the commands below deploy an environment.
 - A managed MongoDB deployment with TLS, authentication, restricted network
   access, automated backups, and a tested restore procedure.
 - Private object storage for user recordings and validator reference audio.
-  Select the provider before implementing its adapter in
-  `ispeak_backend/services/storageService.js`.
+  The Cloudflare R2 provider is implemented in
+  `ispeak_backend/services/storageService.js`; live verification is pending.
 - Hosting for the admin web build and sufficient CPU/GPU, memory, and disk for
   the approximately 1.5 GB speech model.
 
 The legacy `ispeak_python-backend` must not be deployed.
 
-Before implementing object storage, supply the provider/API (for example an
-S3-compatible API, GCS, or Azure Blob), region, private bucket/container name,
-endpoint if applicable, workload identity/service-account method, and retention
-policy. Configure credentials in the host's secret manager. Do not paste them
-into this document. The current adapter is local-only: a selected provider needs
-upload/write support, streaming reads, deletion, and route integration. Reference
-audio access must remain authenticated; user recording keys must stay private.
+Before live R2 verification, the team must supply a private bucket, scoped S3
+credentials, account endpoint and approved retention policy. Configure credentials
+in the host's secret manager, never in this document. Upload/read/delete route
+integration and a Mongo-backed cleanup journal are implemented. Reference audio
+access remains authenticated and recording keys remain private. Switching drivers
+does not migrate existing local audio; migration requires a separate reviewed plan.
 
 ## 2. Node API
 
@@ -43,7 +47,7 @@ Configure these values in the hosting platform, never in Git:
 | `PYTHON_BACKEND_URL` | Private V2 service URL |
 | `PYTHON_TIMEOUT_MS` | Inference timeout, default `300000` |
 | `PORT` | Platform-assigned or configured API port |
-| `STORAGE_DRIVER` | Provider adapter name; `local` is development-only |
+| `STORAGE_DRIVER` | `r2`; `local` is development-only on ephemeral hosting |
 | `RECORDING_RETENTION_DAYS` | Recording lifetime, default `30` |
 
 `npm start` starts the service. `/health` returns 200 only after MongoDB is
@@ -81,7 +85,9 @@ Required production configuration:
 
 ## 4. Mobile release
 
-Choose and register an organization-owned Android package ID. Then create a
+The team-selected Android package ID is `com.ispeak.app`, matching the namespace
+and MainActivity. No environment/property application-ID override is needed.
+Follow `ANDROID_RELEASE.md` for verification and private signing setup. Create a
 private upload keystore and copy `android/key.properties.example` to
 `android/key.properties`. Both the real properties file and keystore are
 ignored by Git.
@@ -95,14 +101,16 @@ package ID must match the intended Play Console application. Current version is
 Build only after supplying those values:
 
 ```text
-$env:ISPEAK_APPLICATION_ID='com.yourorg.ispeak'
-flutter build appbundle --release --dart-define=API_BASE_URL=https://api.example.com/api
+# Supply the team's real approved HTTPS URL; no production URL is available yet.
+flutter build appbundle --release "--dart-define=API_BASE_URL=$env:ISPEAK_RELEASE_API_URL"
 ```
 
-Replace the example domain and package ID. Release API URLs must use HTTPS, and
-Gradle refuses release tasks that still use `com.example.ispeak` or have no
-release signing file. Update the `version:` value in `pubspec.yaml` before each
-store release (`versionName+versionCode`).
+Release API URLs must be explicit HTTPS URLs without credentials or literal
+localhost/LAN targets. Gradle refuses missing/invalid signing values, missing
+keystores and debug certificates. Current `1.0.0+1` is retained for the intended
+first final-ID release; confirm distribution history before choosing a higher
+versionCode for subsequent updates. No signed/distributable release is available
+until the team provisions its key and the approved API is verified.
 
 ## 5. Admin web
 

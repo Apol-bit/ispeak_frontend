@@ -1,4 +1,4 @@
-package com.example.ispeak
+package com.ispeak.app
 
 import io.flutter.embedding.android.FlutterActivity
 
