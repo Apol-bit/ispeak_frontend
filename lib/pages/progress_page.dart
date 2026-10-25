@@ -1,5 +1,6 @@
 import 'session_history_page.dart';
 import '../services/resource_access.dart';
+import '../models/performance_statistics.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
@@ -28,6 +29,10 @@ class ProgressPage extends StatefulWidget {
 class _ProgressPageState extends State<ProgressPage> {
   bool _isLoading = true;
   String? _currentLevel;
+  int _englishAssessmentCount = 0;
+  int _filipinoAssessmentCount = 0;
+  bool get _hasLanguageAssessments => _isEnglishSelected
+      ? _englishAssessmentCount > 0 : _filipinoAssessmentCount > 0;
   Set<int> _activeDays = {};
 
   bool _isEnglishSelected = true;
@@ -175,7 +180,7 @@ class _ProgressPageState extends State<ProgressPage> {
                 data['overallStats'] ?? {},
               )
             : null;
-        final List<dynamic> sessions = data['sessions'] ?? [];
+        final List<dynamic> sessions = performanceSessions(data);
 
         // Split sessions by language ---
         final List<dynamic> englishSessions = sessions
@@ -249,6 +254,11 @@ class _ProgressPageState extends State<ProgressPage> {
     List<dynamic> sessions, {
     required bool isEnglish,
   }) {
+    if (isEnglish) {
+      _englishAssessmentCount = sessions.length;
+    } else {
+      _filipinoAssessmentCount = sessions.length;
+    }
     if (sessions.isEmpty) {
       if (isEnglish) {
         _englishOverall = 0;
@@ -485,7 +495,7 @@ class _ProgressPageState extends State<ProgressPage> {
                             'Pace',
                             _getTrendSubtitle('Pace', skills),
                             (skills[0]['value'] as double),
-                            '${skills[0]['score']}%',
+                            _hasLanguageAssessments ? '${skills[0]['score']}%' : '—',
                             accentColor,
                           ),
                           const SizedBox(height: 18),
@@ -493,7 +503,7 @@ class _ProgressPageState extends State<ProgressPage> {
                             'Clarity',
                             _getTrendSubtitle('Clarity', skills),
                             (skills[1]['value'] as double),
-                            '${skills[1]['score']}%',
+                            _hasLanguageAssessments ? '${skills[1]['score']}%' : '—',
                             accentColor,
                           ),
                           const SizedBox(height: 18),
@@ -501,7 +511,7 @@ class _ProgressPageState extends State<ProgressPage> {
                             'Energy',
                             _getTrendSubtitle('Energy', skills),
                             (skills[2]['value'] as double),
-                            '${skills[2]['score']}%',
+                            _hasLanguageAssessments ? '${skills[2]['score']}%' : '—',
                             accentColor,
                           ),
                         ],
@@ -720,7 +730,7 @@ class _ProgressPageState extends State<ProgressPage> {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    '$overall%',
+                    _hasLanguageAssessments ? '$overall%' : 'No data',
                     style: TextStyle(
                       color: accentColor,
                       fontSize: 48,
@@ -752,7 +762,7 @@ class _ProgressPageState extends State<ProgressPage> {
                           ),
                         ),
                         Text(
-                          '${skill['score']}%',
+                          _hasLanguageAssessments ? '${skill['score']}%' : '—',
                           style: TextStyle(
                             color: accentColor,
                             fontWeight: FontWeight.bold,
@@ -762,7 +772,7 @@ class _ProgressPageState extends State<ProgressPage> {
                     ),
                     const SizedBox(height: 10),
                     _styledTooltip(
-                      message: '${skill['label']}\nScore: ${skill['score']}%',
+                      message: _hasLanguageAssessments ? '${skill['label']}\nScore: ${skill['score']}%' : 'No eligible assessments yet',
                       child: ClipRRect(
                         borderRadius: BorderRadius.circular(10),
                         child: LinearProgressIndicator(
@@ -1380,7 +1390,7 @@ class _ProgressPageState extends State<ProgressPage> {
         ? 1
         : 2;
     int score = skills[index]['score'] as int;
-    if (score == 0) return 'No data yet — start practicing!';
+    if (!_hasLanguageAssessments) return 'No eligible assessments yet — start practicing!';
     if (score >= 85) return 'Excellent $metric performance';
     if (score >= 70) return 'Good $metric — keep improving';
     if (score >= 50) return '$metric needs more practice';

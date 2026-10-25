@@ -3,6 +3,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'session_history_page.dart';
 import '../models/session_history.dart';
+import '../models/performance_statistics.dart';
 import '../services/resource_access.dart';
 import '../config/api_config.dart';
 import '../config/responsive.dart';
@@ -33,15 +34,16 @@ class _DashBoardPageState extends State<DashBoardPage> {
   bool _isLoading = true;
   Map<String, dynamic> _userStats = {
     'totalSessions': 0,
-    'avgScore': 0,
+    'avgScore': null,
     'dayStreak': 0,
   };
   List<dynamic> _recentSessionsList = [];
 
   // Level system state
   String _userLevel = 'Beginner'; // current/initial level
-  int _practiceCount = 0; // total completed sessions
-  bool _levelLocked = false; // true once >= 10 practices done
+  int _practiceCount = 0; // eligible scored assessments
+  bool _levelLocked =
+      false; // valid average and at least 10 eligible assessments
 
   @override
   void initState() {
@@ -87,7 +89,9 @@ class _DashBoardPageState extends State<DashBoardPage> {
         'Dashboard: Fetching data for userId=${widget.userId} from ${ApiConfig.baseUrl}',
       );
       final responses = await Future.wait([
-        ApiClient.get(Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}?view=compact')),
+        ApiClient.get(
+          Uri.parse('${ApiConfig.baseUrl}/stats/${widget.userId}?view=compact'),
+        ),
         ApiClient.get(
           Uri.parse('${ApiConfig.baseUrl}/sessions/${widget.userId}?limit=3'),
         ),
@@ -103,7 +107,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
       if (statsRes.statusCode == 200) {
         final data = jsonDecode(statsRes.body);
         final overallStats = data['overallStats'] ?? {};
-        final sessions = data['sessions'] as List<dynamic>? ?? [];
+        final sessions = performanceSessions(data);
 
         Set<DateTime> uniqueDays = {};
         for (var s in sessions) {
@@ -136,15 +140,17 @@ class _DashBoardPageState extends State<DashBoardPage> {
           }
         }
 
-        int overallScore = (overallStats['avgScore'] ?? 0).toInt();
+        final overallScore = performanceAverage(overallStats);
         int totalSessions = overallStats['totalSessions'] ?? 0;
 
         _userStats = {
           'totalSessions': totalSessions,
+          'eligibleScoredSessions': eligibleSessionCount(overallStats),
           'avgScore': overallScore,
+          'avgScoreAvailable': overallStats['avgScoreAvailable'],
           'dayStreak': currentStreak,
         };
-        _practiceCount = totalSessions;
+        _practiceCount = eligibleSessionCount(overallStats);
         debugPrint(
           'Dashboard Stats: totalSessions=$totalSessions, avgScore=$overallScore, dayStreak=$currentStreak',
         );
@@ -161,9 +167,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
       // Fetch level info from user profile
       if (profileRes.statusCode == 200) {
         final profileData = jsonDecode(profileRes.body);
-        final int totalSessions = _userStats['totalSessions'] ?? 0;
-
-        _levelLocked = totalSessions >= 10;
+        _levelLocked = ResourceAccess.hasPerformancePlacement(_userStats);
         _userLevel = ResourceAccess.currentLevel(profileData, _userStats);
       }
 
@@ -306,14 +310,21 @@ class _DashBoardPageState extends State<DashBoardPage> {
                 Expanded(
                   child: _StatItem(
                     value: _userStats['totalSessions'].toString(),
-                    label: 'Sessions',
+                    label: _userStats['totalSessions'] == 1
+                        ? 'Session'
+                        : 'Sessions',
                     valueColor: const Color(0xFF3F7CF4),
                   ),
                 ),
                 const _VerticalDivider(),
                 Expanded(
                   child: _StatItem(
-                    value: (_userStats['avgScore'] ?? 0).toString(),
+                    value: _userStats['avgScoreAvailable'] == false
+                        ? '—'
+                        : (_userStats['avgScore'] as num?)?.toStringAsFixed(
+                                1,
+                              ) ??
+                              '—',
                     label: 'Avg Score',
                     valueColor: _getScoreColor(_userStats['avgScore'] ?? 0),
                   ),
@@ -489,7 +500,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
                   ),
                   SizedBox(height: r.h(2)),
                   Text(
-                    '$done/$total Practices Completed',
+                    '$done/$total Scored Assessments',
                     style: TextStyle(fontSize: r.sp(12), color: Colors.grey),
                   ),
                 ],
@@ -522,7 +533,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
             SizedBox(width: r.w(6)),
             Expanded(
               child: Text(
-                'Initial level: $_userLevel · Official level unlocks after $total practices',
+                'Initial level: $_userLevel · Official level unlocks after $total eligible assessments',
                 style: TextStyle(
                   fontSize: r.sp(11.5),
                   color: Colors.grey.shade500,
@@ -679,7 +690,7 @@ class _DashBoardPageState extends State<DashBoardPage> {
               },
               child: _SessionCard(
                 date: shortDate,
-                createdTime: createdTime,
+                createdTime: '$createdTime · ${sessionActivityLabel(session)}',
                 score: score.toString(),
                 pace: '${session['paceScore'] ?? 0}%',
                 clarity: '${session['clarityScore'] ?? 0}%',

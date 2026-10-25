@@ -250,7 +250,7 @@ class _SessionHistoryPageState extends State<SessionHistoryPage> {
                       style: const TextStyle(fontWeight: FontWeight.w600),
                     ),
                     subtitle: Text(
-                      '${_date(entry.value)}\n${entry.value['language'] ?? 'English'}',
+                      '${_date(entry.value)}\n${entry.value['language'] ?? 'English'} · ${sessionActivityLabel(entry.value)}',
                     ),
                     isThreeLine: true,
                     trailing: Text(

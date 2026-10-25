@@ -1,4 +1,5 @@
 import '../services/temporary_recording.dart';
+import '../services/recording_limits.dart';
 import '../widgets/resource_access_check.dart';
 import '../widgets/fixed_back_layout.dart';
 import 'dart:async';
@@ -221,11 +222,54 @@ class ScriptPracticePage extends StatefulWidget {
   State<ScriptPracticePage> createState() => _ScriptPracticePageState();
 }
 
-class _ScriptPracticePageState extends State<ScriptPracticePage> {
+class _ScriptPracticePageState extends State<ScriptPracticePage>
+    with WidgetsBindingObserver {
   PracticeStatus _status = PracticeStatus.ready;
   int _seconds = 0;
   Timer? _timer;
+  final RecordingDeadline _deadline = RecordingDeadline(maxRecordingSeconds);
   bool _isUploading = false;
+  bool _starting = false;
+  bool _stopped = false;
+  bool _active = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _active = state == AppLifecycleState.resumed;
+    if (state != AppLifecycleState.resumed &&
+        _status == PracticeStatus.recording &&
+        !_isUploading) {
+      unawaited(_pause());
+    }
+  }
+
+  Future<void> _stopAtLimit() async {
+    _timer?.cancel();
+    _deadline.pause();
+    _seconds = maxRecordingSeconds;
+    _scrollTimer?.cancel();
+    _stopped = true;
+    try {
+      _audioPath = await _audioRecorder.stop() ?? _audioPath;
+      if (!mounted) return;
+      setState(() => _status = PracticeStatus.paused);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '5-minute limit reached. Analyze this recording or reset.',
+          ),
+        ),
+      );
+    } catch (_) {
+      await _reset();
+    }
+  }
 
   final AudioRecorder _audioRecorder = AudioRecorder();
   String? _audioPath;
@@ -238,8 +282,15 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   @override
   void dispose() {
     _timer?.cancel();
+    _deadline.pause();
     _scrollTimer?.cancel();
-    _audioRecorder.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    final path = _audioPath;
+    unawaited(
+      _audioRecorder.dispose().whenComplete(
+        () => discardTemporaryRecording(path),
+      ),
+    );
     _scrollController.dispose();
     super.dispose();
   }
@@ -260,6 +311,8 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
   }
 
   Future<void> _start() async {
+    if (_starting || _isUploading || _seconds >= maxRecordingSeconds) return;
+    _starting = true;
     try {
       if (_status == PracticeStatus.ready &&
           !await checkResourceAccess(
@@ -274,7 +327,9 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         _timer?.cancel();
 
         if (_status == PracticeStatus.ready) {
+          _deadline.reset();
           _seconds = 0;
+          _stopped = false;
           final Directory tempDir = await getTemporaryDirectory();
           // ---> AUDIO FIX: Changed .m4a to .wav
           _audioPath =
@@ -293,34 +348,57 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
           await _audioRecorder.resume();
         }
 
+        if (!mounted || !_active) {
+          await _reset();
+          return;
+        }
         setState(() => _status = PracticeStatus.recording);
+        _deadline.start(_stopAtLimit);
         _startAutoScroll();
-        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        final base = _seconds;
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
           if (mounted) {
-            setState(() => _seconds++);
+            setState(
+              () =>
+                  _seconds = (base + timer.tick).clamp(0, maxRecordingSeconds),
+            );
           }
         });
       }
     } catch (e) {
       debugPrint("Error starting record: $e");
+      await _reset();
+    } finally {
+      _starting = false;
     }
   }
 
   Future<void> _pause() async {
+    if (_starting) return;
+    _starting = true;
     _timer?.cancel();
+    _deadline.pause();
     _scrollTimer?.cancel();
-    await _audioRecorder.pause();
-    setState(() => _status = PracticeStatus.paused);
+    try {
+      await _audioRecorder.pause();
+      if (mounted) setState(() => _status = PracticeStatus.paused);
+    } catch (_) {
+      await _reset();
+    } finally {
+      _starting = false;
+    }
   }
 
   Future<void> _reset() async {
     _timer?.cancel();
+    _deadline.reset();
     _scrollTimer?.cancel();
-    await _audioRecorder.stop();
-    if (_audioPath != null) {
-      final file = File(_audioPath!);
-      if (await file.exists()) await file.delete();
+    try {
+      await _audioRecorder.stop();
+    } catch (_) {
+      /* Already interrupted. */
     }
+    await discardTemporaryRecording(_audioPath);
     if (!mounted) return;
 
     if (_scrollController.hasClients) {
@@ -331,17 +409,19 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
       _status = PracticeStatus.ready;
       _seconds = 0;
       _audioPath = null;
+      _stopped = false;
     });
   }
 
   Future<void> _finishSession() async {
     if (_isUploading) return;
     _timer?.cancel();
+    _deadline.pause();
     _scrollTimer?.cancel();
     setState(() => _isUploading = true);
 
     try {
-      final finalPath = await _audioRecorder.stop();
+      final finalPath = _stopped ? _audioPath : await _audioRecorder.stop();
       if (finalPath != null) {
         var request = http.MultipartRequest(
           'POST',
@@ -349,6 +429,8 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         );
 
         request.fields['userId'] = widget.userId;
+        request.fields['practiceMode'] = 'script';
+        request.fields['durationSeconds'] = _seconds.toString();
         final scriptLanguage = widget.script['language'];
         request.fields['language'] =
             ['English', 'Filipino', 'Taglish'].contains(scriptLanguage)
@@ -412,7 +494,16 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
         ).showSnackBar(const SnackBar(content: Text('Connection Error')));
       }
     }
-    if (mounted) setState(() => _isUploading = false);
+    await discardTemporaryRecording(_audioPath);
+    _audioPath = null;
+    if (mounted) {
+      setState(() {
+        _isUploading = false;
+        _status = PracticeStatus.ready;
+        _seconds = 0;
+        _stopped = false;
+      });
+    }
   }
 
   String get _time {
@@ -757,6 +848,10 @@ class _ScriptPracticePageState extends State<ScriptPracticePage> {
             ),
           ),
           const SizedBox(height: 10),
+          const Text(
+            'Maximum recording: 05:00',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           if (_status == PracticeStatus.paused && !_isUploading)
             TextButton(
               onPressed: _reset,

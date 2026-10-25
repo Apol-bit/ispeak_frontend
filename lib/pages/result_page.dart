@@ -1,9 +1,31 @@
 import '../widgets/feedback_tips.dart';
+import '../models/assessment_feedback.dart';
+import '../models/session_history.dart';
 import '../widgets/fixed_back_layout.dart';
 import 'package:flutter/material.dart';
 import '../theme/app_theme.dart';
 
 class ResultPage extends StatelessWidget {
+  String _fillerSubtitle(Map<String, dynamic> session) {
+    final raw = session['fillerAnalysis'];
+    final detail = raw is Map && raw['version'] == 1 ? raw : null;
+    final available = detail != null
+        ? detail['available'] == true
+        : session['fillerAnalysisAvailable'] == true;
+    final count = detail != null ? detail['count'] : session['fillerWordCount'];
+    if (!available ||
+        count is! num ||
+        !count.isFinite ||
+        count < 0 ||
+        count > 1000000 ||
+        count != count.roundToDouble()) {
+      return 'Filler-word analysis unavailable';
+    }
+    return count > 0
+        ? '${count.toInt()} filler words detected'
+        : 'No confirmed fillers detected';
+  }
+
   final VoidCallback? onBack;
   final VoidCallback? onBackToHome;
   final VoidCallback? onPracticeAgain;
@@ -47,16 +69,20 @@ class ResultPage extends StatelessWidget {
     'Recorded pace: $wpm words per minute. Detailed findings are unavailable for this saved session.',
   );
 
-  Object _getClarityFeedback(
-    int score,
-    int fillers,
-    bool available,
-  ) => _feedback(
-    'clarity',
-    available
-        ? '$fillers filler spans were detected. Detailed clarity findings are unavailable for this saved session.'
-        : 'Filler-word analysis was unavailable for this session.',
-  );
+  Object _getClarityFeedback(int score, int fillers, bool available) =>
+      feedbackTips(
+            _feedback(
+              'clarity',
+              available
+                  ? '$fillers filler spans were detected. Detailed clarity findings are unavailable for this saved session.'
+                  : 'Filler-word analysis was unavailable for this session.',
+            ),
+          )
+          .where(
+            (tip) =>
+                !tip.startsWith('Pronunciation confidence was unavailable'),
+          )
+          .toList();
 
   Object _getEnergyFeedback(int score) => _feedback(
     'energy',
@@ -108,17 +134,17 @@ class ResultPage extends StatelessWidget {
     final int fillerDisplay = (data['fillerWordCount'] ?? 0).toInt();
     final bool fillerAnalysisAvailable =
         data['fillerAnalysisAvailable'] ?? false;
-    final int overallScore = (data['overallScore'] ?? 0).toInt();
+    final num overallScore = data['overallScore'] is num
+        ? data['overallScore']
+        : 0;
     final int paceScore = (data['paceScore'] ?? 0).toInt();
     final int clarityScore = (data['clarityScore'] ?? 0).toInt();
     final int energyScore = (data['energyScore'] ?? 0).toInt();
     final String createdAt = data['createdAt'] ?? '';
-    final availability = data['analysisAvailability'];
-    final isPartial =
-        availability is! Map ||
-        availability['pitch'] != true ||
-        availability['pronunciation'] != true ||
-        availability['fillers'] != true;
+    // Keep the current evidence decision, with the original concise card notice.
+    final isPartial = !assessmentFeedback(
+      data,
+    ).startsWith('Complete assessment.');
     final transcript = data['transcription']?.toString().trim() ?? '';
     final invalidRecording =
         data['analysisValid'] == false ||
@@ -187,7 +213,7 @@ class ResultPage extends StatelessWidget {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: Text(
-                                  _formatDateTime(createdAt),
+                                  '${_formatDateTime(createdAt)} · ${sessionActivityLabel(data)}',
                                   style: const TextStyle(
                                     color: Colors.white70,
                                     fontSize: 13,
@@ -216,7 +242,7 @@ class ResultPage extends StatelessWidget {
                           child: Column(
                             children: [
                               Text(
-                                overallScore.toString(),
+                                overallScoreText(data['overallScore']),
                                 style: TextStyle(
                                   fontSize: 56,
                                   fontWeight: FontWeight.bold,
@@ -304,9 +330,7 @@ class ResultPage extends StatelessWidget {
                     _buildMetricCard(
                       icon: Icons.chat_bubble_outline,
                       title: 'Clarity',
-                      subtitle: fillerAnalysisAvailable
-                          ? '$fillerDisplay filler words detected'
-                          : 'Filler-word analysis unavailable',
+                      subtitle: _fillerSubtitle(data),
                       score: clarityScore,
                       feedback: _getClarityFeedback(
                         clarityScore,

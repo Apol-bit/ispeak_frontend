@@ -158,14 +158,14 @@ void main() {
       expect(
         ResourceAccess.currentLevel(
           {'initialLevel': 'Advanced'},
-          {'totalSessions': 10, 'avgScore': 59},
+          {'totalSessions': 10, 'eligibleScoredSessions': 10, 'avgScore': 59},
         ),
         'Beginner',
       );
       expect(
         ResourceAccess.currentLevel(
           {'initialLevel': 'Beginner'},
-          {'totalSessions': 10, 'avgScore': 80},
+          {'totalSessions': 10, 'eligibleScoredSessions': 10, 'avgScore': 80},
         ),
         'Advanced',
       );

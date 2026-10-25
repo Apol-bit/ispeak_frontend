@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../config/api_config.dart';
 import 'api_client.dart';
+import '../models/performance_statistics.dart';
 
 /// The existing proficiency thresholds, shared by Home and resource access.
 class ResourceAccess {
@@ -20,8 +21,8 @@ class ResourceAccess {
   }
 
   static String currentLevel(Map profile, Map stats) {
-    if ((stats['totalSessions'] as num? ?? 0) >= 10) {
-      final score = (stats['avgScore'] as num? ?? 0).toInt();
+    final score = stats['avgScore'];
+    if (hasPerformancePlacement(stats)) {
       if (score >= 80) return 'Advanced';
       if (score >= 60) return 'Intermediate';
       return 'Beginner';
@@ -29,6 +30,15 @@ class ResourceAccess {
     return parseLevel(profile['level']) ??
         parseLevel(profile['initialLevel']) ??
         'Beginner';
+  }
+
+  static bool hasPerformancePlacement(Map stats) {
+    final score = stats['avgScore'];
+    return eligibleSessionCount(stats) >= 10 &&
+        score is num &&
+        score.isFinite &&
+        score >= 0 &&
+        score <= 100;
   }
 
   static bool allows(String current, String requested) {

@@ -40,6 +40,7 @@ class SplashScreen extends StatelessWidget {
                           tag: 'logo',
                           child: Image.asset(
                             'assets/images/ispeak_logo.png',
+                            fit: BoxFit.contain,
                             height: r.h(120),
                           ),
                         ),

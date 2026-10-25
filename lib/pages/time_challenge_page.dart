@@ -1,4 +1,5 @@
 import '../services/temporary_recording.dart';
+import '../services/recording_limits.dart';
 import '../widgets/resource_access_check.dart';
 import '../widgets/fixed_back_layout.dart';
 import 'dart:async';
@@ -34,11 +35,14 @@ class TimedChallengePage extends StatefulWidget {
   State<TimedChallengePage> createState() => _TimedChallengePageState();
 }
 
-class _TimedChallengePageState extends State<TimedChallengePage> {
+class _TimedChallengePageState extends State<TimedChallengePage>
+    with WidgetsBindingObserver {
   _PracticeState _state = _PracticeState.ready;
   Timer? _timer;
   int _elapsedSeconds = 0;
   bool _isUploading = false;
+  bool _starting = false;
+  bool _active = true;
   String _selectedLanguage = 'English';
 
   final AudioRecorder _audioRecorder = AudioRecorder();
@@ -47,24 +51,34 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     final configuredLanguage = widget.challenge['language'];
     if (['English', 'Filipino', 'Taglish'].contains(configuredLanguage)) {
       _selectedLanguage = configuredLanguage;
     }
   }
 
-  int get _durationSeconds => widget.challenge['timeLimitSeconds'] ?? 60;
+  int get _durationSeconds =>
+      challengeRecordingLimit(widget.challenge['timeLimitSeconds']);
   int get _remainingSeconds =>
       (_durationSeconds - _elapsedSeconds).clamp(0, _durationSeconds);
 
   @override
   void dispose() {
     _timer?.cancel();
-    _audioRecorder.dispose();
+    WidgetsBinding.instance.removeObserver(this);
+    final path = _audioPath;
+    unawaited(
+      _audioRecorder.dispose().whenComplete(
+        () => discardTemporaryRecording(path),
+      ),
+    );
     super.dispose();
   }
 
   Future<void> _start() async {
+    if (_starting || _isUploading) return;
+    _starting = true;
     try {
       if (!await checkResourceAccess(
         context,
@@ -96,12 +110,16 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
           );
         }
 
+        if (!mounted || !_active) {
+          await _interrupt();
+          return;
+        }
         setState(() => _state = _PracticeState.recording);
 
-        _timer = Timer.periodic(const Duration(seconds: 1), (_) {
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
           if (!mounted) return;
           setState(() {
-            _elapsedSeconds++;
+            _elapsedSeconds = timer.tick.clamp(0, _durationSeconds);
           });
 
           // Auto-finish if time runs out
@@ -113,6 +131,9 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
       }
     } catch (e) {
       debugPrint("Error starting record: $e");
+      await _interrupt();
+    } finally {
+      _starting = false;
     }
   }
 
@@ -131,6 +152,8 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
 
         request.fields['userId'] = widget.userId;
         request.fields['language'] = _selectedLanguage;
+        request.fields['practiceMode'] = 'challenge';
+        request.fields['durationSeconds'] = _elapsedSeconds.toString();
         final challengeId = widget.challenge['_id'];
         if (challengeId is String && challengeId.isNotEmpty) {
           request.fields['challengeId'] = challengeId;
@@ -187,7 +210,37 @@ class _TimedChallengePageState extends State<TimedChallengePage> {
         ).showSnackBar(const SnackBar(content: Text('Connection Error')));
       }
     }
-    if (mounted) setState(() => _isUploading = false);
+    await discardTemporaryRecording(_audioPath);
+    _audioPath = null;
+    if (mounted) {
+      setState(() {
+        _isUploading = false;
+        _state = _PracticeState.ready;
+        _elapsedSeconds = 0;
+      });
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _active = state == AppLifecycleState.resumed;
+    if (!_active && _state == _PracticeState.recording && !_isUploading) {
+      unawaited(_interrupt());
+    }
+  }
+
+  Future<void> _interrupt() async {
+    _timer?.cancel();
+    if (mounted) setState(() => _state = _PracticeState.ready);
+    final path = _audioPath;
+    _audioPath = null;
+    try {
+      await _audioRecorder.stop();
+    } catch (_) {
+      /* Already interrupted. */
+    }
+    await discardTemporaryRecording(path);
+    if (mounted) setState(() => _elapsedSeconds = 0);
   }
 
   String _fmt(int s) {

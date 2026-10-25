@@ -1,3 +1,11 @@
+// Identify activities only from explicit metadata, never historical ID guesses.
+String sessionActivityLabel(Map session) => switch (session['practiceMode']) {
+  'ordinary' => 'Free Practice',
+  'script' => 'Script Practice',
+  'challenge' => 'Timed Challenge',
+  _ => 'Activity unavailable',
+};
+
 List<Map<String, dynamic>> newestSessions(
   Iterable<dynamic> sessions, {
   int? limit,

@@ -7,6 +7,7 @@ import '../theme/app_theme.dart';
 import 'editprofile_screen.dart';
 import 'login_screen.dart';
 import '../services/api_client.dart';
+import '../models/performance_statistics.dart';
 import '../services/auth_service.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -26,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   int sessions = 0;
   int avgScore = 0;
+  bool _hasAverage = false;
   int dayStreak = 0;
 
   int? userAge;
@@ -91,11 +93,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (statsRes.statusCode == 200) {
         final statsData = jsonDecode(statsRes.body);
         final overallStats = statsData['overallStats'] ?? {};
-        final sessionsList = statsData['sessions'] as List<dynamic>? ?? [];
+        final sessionsList = performanceSessions(statsData);
 
         // FIX: Properly extract totalSessions from overallStats
         sessions = overallStats['totalSessions'] ?? 0;
-        avgScore = (overallStats['avgScore'] ?? 0).toInt();
+        final average = performanceAverage(overallStats);
+        avgScore = average?.toInt() ?? 0;
+        _hasAverage = average != null;
 
         // --- TRUE CONTINUOUS STREAK ALGORITHM ---
         Set<DateTime> uniqueDays = {};
@@ -367,7 +371,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: Column(
                                     children: [
                                       Text(
-                                        _isLoading ? '-' : '$avgScore',
+                                        _isLoading || !_hasAverage ? '-' : '$avgScore',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,

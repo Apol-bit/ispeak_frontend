@@ -1,4 +1,5 @@
 import '../services/temporary_recording.dart';
+import '../services/recording_limits.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'dart:io';
@@ -29,11 +30,53 @@ class PracticePage extends StatefulWidget {
   State<PracticePage> createState() => _PracticePageState();
 }
 
-class _PracticePageState extends State<PracticePage> {
+class _PracticePageState extends State<PracticePage>
+    with WidgetsBindingObserver {
   PracticeState _state = PracticeState.ready;
   Timer? _timer;
+  final RecordingDeadline _deadline = RecordingDeadline(maxRecordingSeconds);
   int _seconds = 0;
   bool _isUploading = false;
+  bool _starting = false;
+  bool _stopped = false;
+  bool _active = true;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    _active = state == AppLifecycleState.resumed;
+    if (state != AppLifecycleState.resumed &&
+        _state == PracticeState.recording &&
+        !_isUploading) {
+      unawaited(_pause());
+    }
+  }
+
+  Future<void> _stopAtLimit() async {
+    _timer?.cancel();
+    _deadline.pause();
+    _seconds = maxRecordingSeconds;
+    _stopped = true;
+    try {
+      _audioPath = await _audioRecorder.stop() ?? _audioPath;
+      if (!mounted) return;
+      setState(() => _state = PracticeState.paused);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '5-minute limit reached. Analyze this recording or reset.',
+          ),
+        ),
+      );
+    } catch (_) {
+      await _reset();
+    }
+  }
 
   PracticeLanguage _language = PracticeLanguage.english;
 
@@ -57,6 +100,7 @@ class _PracticePageState extends State<PracticePage> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.resetVersion != widget.resetVersion) {
       _timer?.cancel();
+      _deadline.reset();
       final path = _audioPath;
       _audioPath = null;
       _seconds = 0;
@@ -69,16 +113,27 @@ class _PracticePageState extends State<PracticePage> {
   @override
   void dispose() {
     _timer?.cancel();
-    _audioRecorder.dispose();
+    _deadline.pause();
+    WidgetsBinding.instance.removeObserver(this);
+    final path = _audioPath;
+    unawaited(
+      _audioRecorder.dispose().whenComplete(
+        () => discardTemporaryRecording(path),
+      ),
+    );
     super.dispose();
   }
 
   Future<void> _start() async {
+    if (_starting || _isUploading || _seconds >= maxRecordingSeconds) return;
+    _starting = true;
     try {
       if (await _audioRecorder.hasPermission()) {
         _timer?.cancel();
         if (_state == PracticeState.ready) {
+          _deadline.reset();
           _seconds = 0;
+          _stopped = false;
           final Directory tempDir = await getTemporaryDirectory();
           _audioPath =
               '${tempDir.path}/ispeak_${DateTime.now().millisecondsSinceEpoch}.wav';
@@ -96,35 +151,58 @@ class _PracticePageState extends State<PracticePage> {
           await _audioRecorder.resume();
         }
 
+        if (!mounted || !_active) {
+          await _reset();
+          return;
+        }
         setState(() => _state = PracticeState.recording);
-        _timer = Timer.periodic(
-          const Duration(seconds: 1),
-          (_) => setState(() => _seconds++),
-        );
+        _deadline.start(_stopAtLimit);
+        final base = _seconds;
+        _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+          if (!mounted) return;
+          setState(
+            () => _seconds = (base + timer.tick).clamp(0, maxRecordingSeconds),
+          );
+        });
       }
     } catch (e) {
       debugPrint("Error starting record: $e");
+      await _reset();
+    } finally {
+      _starting = false;
     }
   }
 
   Future<void> _pause() async {
+    if (_starting) return;
+    _starting = true;
     _timer?.cancel();
-    await _audioRecorder.pause();
-    setState(() => _state = PracticeState.paused);
+    _deadline.pause();
+    try {
+      await _audioRecorder.pause();
+      if (mounted) setState(() => _state = PracticeState.paused);
+    } catch (_) {
+      await _reset();
+    } finally {
+      _starting = false;
+    }
   }
 
   Future<void> _reset() async {
     _timer?.cancel();
-    await _audioRecorder.stop();
-    if (_audioPath != null) {
-      final file = File(_audioPath!);
-      if (await file.exists()) await file.delete();
+    _deadline.reset();
+    try {
+      await _audioRecorder.stop();
+    } catch (_) {
+      /* Already interrupted. */
     }
+    await discardTemporaryRecording(_audioPath);
     if (!mounted) return;
     setState(() {
       _state = PracticeState.ready;
       _seconds = 0;
       _audioPath = null;
+      _stopped = false;
     });
   }
 
@@ -345,6 +423,10 @@ class _PracticePageState extends State<PracticePage> {
             ),
           ),
           const SizedBox(height: 10),
+          const Text(
+            'Maximum recording: 05:00',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
+          ),
           if (_state == PracticeState.paused && !_isUploading)
             TextButton(
               onPressed: _reset,
@@ -375,10 +457,13 @@ class _PracticePageState extends State<PracticePage> {
             : () async {
                 if (_isUploading) return;
                 _timer?.cancel();
+                _deadline.pause();
                 setState(() => _isUploading = true);
 
                 try {
-                  final finalPath = await _audioRecorder.stop();
+                  final finalPath = _stopped
+                      ? _audioPath
+                      : await _audioRecorder.stop();
 
                   if (finalPath != null) {
                     var request = http.MultipartRequest(
@@ -388,6 +473,8 @@ class _PracticePageState extends State<PracticePage> {
 
                     request.fields['userId'] = widget.userId;
                     request.fields['language'] = _languageName;
+                    request.fields['practiceMode'] = 'ordinary';
+                    request.fields['durationSeconds'] = _seconds.toString();
 
                     request.files.add(
                       await http.MultipartFile.fromPath('audio', finalPath),
@@ -398,7 +485,7 @@ class _PracticePageState extends State<PracticePage> {
                     if (response.statusCode == 200 ||
                         response.statusCode == 201) {
                       final resultData = jsonDecode(response.body);
-                      widget.onFinish?.call(resultData);
+                      if (mounted) widget.onFinish?.call(resultData);
                     } else {
                       if (mounted) {
                         ScaffoldMessenger.of(context).showSnackBar(
@@ -417,7 +504,16 @@ class _PracticePageState extends State<PracticePage> {
                     );
                   }
                 }
-                if (mounted) setState(() => _isUploading = false);
+                await discardTemporaryRecording(_audioPath);
+                _audioPath = null;
+                if (mounted) {
+                  setState(() {
+                    _isUploading = false;
+                    _state = PracticeState.ready;
+                    _seconds = 0;
+                    _stopped = false;
+                  });
+                }
               },
         child: _isUploading
             ? const SizedBox(
