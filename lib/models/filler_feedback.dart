@@ -29,6 +29,18 @@ String fillerFeedback(Map<String, dynamic> session) {
         .join(', ');
     if (labels.isNotEmpty) message += ' Detected: $labels.';
   }
+  final review = detail?['candidates'];
+  if (review is List) {
+    final labels = review
+        .whereType<Map>()
+        .map((w) => w['word'])
+        .whereType<String>()
+        .take(5)
+        .join(', ');
+    if (labels.isNotEmpty) {
+      message += ' Review matches (may be grammatical): $labels.';
+    }
+  }
   final coverage = detail?['coverage'];
   if (coverage is Map && coverage['status'] == 'mismatch') {
     message +=

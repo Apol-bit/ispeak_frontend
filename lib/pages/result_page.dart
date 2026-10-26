@@ -1,5 +1,6 @@
 import '../widgets/feedback_tips.dart';
 import '../models/assessment_feedback.dart';
+import '../models/filler_feedback.dart';
 import '../models/session_history.dart';
 import '../widgets/fixed_back_layout.dart';
 import 'package:flutter/material.dart';
@@ -22,7 +23,7 @@ class ResultPage extends StatelessWidget {
       return 'Filler-word analysis unavailable';
     }
     return count > 0
-        ? '${count.toInt()} filler words detected'
+        ? '${count.toInt()} confirmed filler ${count == 1 ? 'span' : 'spans'}'
         : 'No confirmed fillers detected';
   }
 
@@ -332,11 +333,16 @@ class ResultPage extends StatelessWidget {
                       title: 'Clarity',
                       subtitle: _fillerSubtitle(data),
                       score: clarityScore,
-                      feedback: _getClarityFeedback(
-                        clarityScore,
-                        fillerDisplay,
-                        fillerAnalysisAvailable,
-                      ), // <-- UPDATED
+                      feedback: [
+                        ...feedbackTips(
+                          _getClarityFeedback(
+                            clarityScore,
+                            fillerDisplay,
+                            fillerAnalysisAvailable,
+                          ),
+                        ),
+                        fillerFeedback(data),
+                      ],
                     ),
                     const SizedBox(height: 16),
 
