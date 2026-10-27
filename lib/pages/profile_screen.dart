@@ -9,6 +9,7 @@ import 'login_screen.dart';
 import '../services/api_client.dart';
 import '../models/performance_statistics.dart';
 import '../services/auth_service.dart';
+import '../services/resource_access.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String userId;
@@ -28,6 +29,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   int sessions = 0;
   int avgScore = 0;
   bool _hasAverage = false;
+  String? _currentLevel;
   int dayStreak = 0;
 
   int? userAge;
@@ -41,6 +43,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     super.initState();
     _loadUserData();
   }
+
+  // The real name leads; the username is secondary. Status text such as
+  // "Loading..." or "Network Error" is shown as the title on its own.
+  bool get _hasAccount =>
+      !_isLoading && userInitials != '!' && username != 'Unknown User';
+
+  String get _displayName {
+    final fullName = '$firstName $lastName'.trim();
+    return _hasAccount && fullName.isNotEmpty ? fullName : username;
+  }
+
+  String get _handle =>
+      _hasAccount && _displayName != username ? '@$username' : '';
 
   Color _getScoreColor(int score) {
     if (score == 0) return Colors.grey;
@@ -65,8 +80,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'Profile: userRes=${userRes.statusCode}, statsRes=${statsRes.statusCode}',
       );
 
+      Map? profile;
       if (userRes.statusCode == 200) {
         final userData = jsonDecode(userRes.body);
+        if (userData is Map) profile = userData;
 
         firstName = userData['firstName'] ?? "";
         lastName = userData['lastName'] ?? "";
@@ -100,6 +117,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
         final average = performanceAverage(overallStats);
         avgScore = average?.toInt() ?? 0;
         _hasAverage = average != null;
+        // Same rule as Home and Progress, so the guide marks the same level.
+        if (profile != null && overallStats is Map) {
+          _currentLevel = ResourceAccess.currentLevel(profile, overallStats);
+        }
 
         // --- TRUE CONTINUOUS STREAK ALGORITHM ---
         Set<DateTime> uniqueDays = {};
@@ -228,8 +249,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: SingleChildScrollView(
           child: Stack(
             children: [
+              // Fixed band ending behind the avatar on every screen height.
               Container(
-                height: MediaQuery.of(context).size.height * 0.35,
+                height: 200,
                 width: double.infinity,
                 color: AppTheme.accentColor,
               ),
@@ -302,7 +324,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             const SizedBox(height: 16),
 
                             Text(
-                              username,
+                              _displayName,
                               maxLines: 2,
                               overflow: TextOverflow.ellipsis,
                               textAlign: TextAlign.center,
@@ -313,18 +335,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               ),
                             ),
 
-                            const SizedBox(height: 4),
-
-                            Text(
-                              _isLoading ? '-' : '$firstName $lastName',
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              textAlign: TextAlign.center,
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[700],
+                            if (_handle.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                _handle,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[700],
+                                ),
                               ),
-                            ),
+                            ],
 
                             const SizedBox(height: 4),
 
@@ -371,7 +394,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                   child: Column(
                                     children: [
                                       Text(
-                                        _isLoading || !_hasAverage ? '-' : '$avgScore',
+                                        _isLoading || !_hasAverage
+                                            ? '-'
+                                            : '$avgScore',
                                         style: TextStyle(
                                           fontSize: 18,
                                           fontWeight: FontWeight.bold,
@@ -459,130 +484,52 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
                       const SizedBox(height: 28),
 
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.info_outline,
-                                  color: AppTheme.accentColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Score Guide',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
+                      _buildGuideCard(
+                        Icons.info_outline,
+                        'Score Guide',
+                        'Every practice session is scored from 0 to 100.',
+                        [
+                          _buildScoreScale(),
+                          for (final band in _scoreBands)
+                            _buildGuideRow(
+                              leading: Text(
+                                band.emoji,
+                                style: const TextStyle(fontSize: 18),
+                              ),
+                              title: band.label,
+                              subtitle: '${band.min}-${band.max} points',
+                              color: band.color,
+                              tag: _averageBand == band ? 'Your average' : null,
                             ),
-                            const SizedBox(height: 20),
-
-                            _buildScoreGuideItem(
-                              '95',
-                              'Excellent',
-                              '85-100 points',
-                              Colors.green,
-                              '🎉',
-                            ),
-                            const SizedBox(height: 12),
-                            _buildScoreGuideItem(
-                              '76',
-                              'Good',
-                              '70-84 points',
-                              Colors.amber,
-                              '👍',
-                            ),
-                            const SizedBox(height: 12),
-                            _buildScoreGuideItem(
-                              '58',
-                              'Fair',
-                              '50-69 points',
-                              Colors.orange,
-                              '💪',
-                            ),
-                            const SizedBox(height: 12),
-                            _buildScoreGuideItem(
-                              '42',
-                              'Needs Work',
-                              '0-49 points',
-                              Colors.red,
-                              '📈',
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                        ),
+                        ],
                       ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 20),
 
-                      Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.grey.shade200),
-                        ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              children: [
-                                const Icon(
-                                  Icons.stars_outlined,
-                                  color: AppTheme.accentColor,
-                                  size: 20,
-                                ),
-                                const SizedBox(width: 8),
-                                const Text(
-                                  'Level Guide',
-                                  style: TextStyle(
-                                    fontSize: 18,
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.black87,
-                                  ),
-                                ),
-                              ],
+                      _buildGuideCard(
+                        Icons.stars_outlined,
+                        'Level Guide',
+                        'Starts from your sign-up details, then follows your '
+                            'average score after 10 scored sessions.',
+                        [
+                          for (final band in _levelBands)
+                            _buildGuideRow(
+                              leading: Icon(
+                                band.icon,
+                                color: Colors.white,
+                                size: 20,
+                              ),
+                              title: band.level,
+                              subtitle: band.range,
+                              color: band.color,
+                              tag: !_isLoading && _currentLevel == band.level
+                                  ? 'Current'
+                                  : null,
                             ),
-                            const SizedBox(height: 20),
-
-                            _buildLevelGuideItem(
-                              'Advanced',
-                              '80 - 100 average score',
-                              const Color(0xFFB45FD4),
-                              Icons.emoji_events_outlined,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildLevelGuideItem(
-                              'Intermediate',
-                              '60 - 79 average score',
-                              const Color(0xFF3F7CF4),
-                              Icons.trending_up,
-                            ),
-                            const SizedBox(height: 12),
-                            _buildLevelGuideItem(
-                              'Beginner',
-                              '0 - 59 average score',
-                              const Color(0xFF3FBD7A),
-                              Icons.spa_outlined,
-                            ),
-                            const SizedBox(height: 12),
-                          ],
-                        ),
+                        ],
                       ),
 
-                      const SizedBox(height: 28),
+                      const SizedBox(height: 20),
 
                       _buildOptionTile(
                         icon: Icons.edit,
@@ -625,79 +572,221 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildScoreGuideItem(
-    String score,
-    String label,
-    String range,
-    Color color,
-    String emoji,
+  // Highest band first; colors are unchanged from the original guide.
+  static const _scoreBands = [
+    (min: 85, max: 100, label: 'Excellent', color: Colors.green, emoji: '🎉'),
+    (min: 70, max: 84, label: 'Good', color: Colors.amber, emoji: '👍'),
+    (min: 50, max: 69, label: 'Fair', color: Colors.orange, emoji: '💪'),
+    (min: 0, max: 49, label: 'Needs Work', color: Colors.red, emoji: '📈'),
+  ];
+
+  static const _levelBands = [
+    (
+      level: 'Advanced',
+      range: '80 - 100 average score',
+      color: Color(0xFFB45FD4),
+      icon: Icons.emoji_events_outlined,
+    ),
+    (
+      level: 'Intermediate',
+      range: '60 - 79 average score',
+      color: Color(0xFF3F7CF4),
+      icon: Icons.trending_up,
+    ),
+    (
+      level: 'Beginner',
+      range: '0 - 59 average score',
+      color: Color(0xFF3FBD7A),
+      icon: Icons.spa_outlined,
+    ),
+  ];
+
+  ({int min, int max, String label, MaterialColor color, String emoji})?
+  get _averageBand => _isLoading || !_hasAverage
+      ? null
+      : _scoreBands.firstWhere((band) => avgScore >= band.min);
+
+  Widget _buildGuideCard(
+    IconData icon,
+    String title,
+    String description,
+    List<Widget> items,
   ) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: color.withAlpha((0.12 * 255).round()),
-        borderRadius: BorderRadius.circular(12),
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.grey.shade200),
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          SizedBox(
-            width: 45,
-            child: Text(
-              score,
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: color,
-              ),
-            ),
-          ),
-          const SizedBox(width: 8),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
+          Row(
+            children: [
+              Icon(icon, color: AppTheme.accentColor, size: 20),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
                   style: const TextStyle(
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: FontWeight.bold,
                     color: Colors.black87,
                   ),
                 ),
-                const SizedBox(height: 2),
-                Text(
-                  range,
-                  style: TextStyle(fontSize: 13, color: Colors.grey[700]),
-                ),
-              ],
-            ),
+              ),
+            ],
           ),
-
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Center(
-              child: Text(emoji, style: const TextStyle(fontSize: 18)),
-            ),
+          const SizedBox(height: 4),
+          Text(
+            description,
+            style: TextStyle(fontSize: 13, color: Colors.grey[600]),
           ),
+          const SizedBox(height: 16),
+          for (final (index, item) in items.indexed) ...[
+            if (index > 0) const SizedBox(height: 12),
+            item,
+          ],
         ],
       ),
     );
   }
 
-  Widget _buildLevelGuideItem(
-    String level,
-    String range,
-    Color color,
-    IconData icon,
-  ) {
+  // A 0-100 bar split at the band boundaries, with the user's average marked.
+  Widget _buildScoreScale() {
+    final band = _averageBand;
+    final average = band == null ? null : avgScore.clamp(0, 100);
+    final textScaler = MediaQuery.textScalerOf(context);
+    final labelHeight = textScaler.scale(11) * 1.5;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final width = constraints.maxWidth;
+        double at(num value) => width * value / 100;
+        Widget label(num value, String text, TextStyle style) => Positioned(
+          left: (at(value) - 32).clamp(0.0, width - 64),
+          width: 64,
+          child: Text(
+            text,
+            maxLines: 1,
+            textAlign: value == 0
+                ? TextAlign.left
+                : value == 100
+                ? TextAlign.right
+                : TextAlign.center,
+            style: style,
+          ),
+        );
+        final tickStyle = TextStyle(fontSize: 11, color: Colors.grey[600]);
+        // Skip an inner boundary label when narrow screens or large text
+        // leave no room for it; 0 and 100 always show.
+        final minGap = textScaler.scale(11) * 3.2;
+        final ticks = [0];
+        for (final value in [50, 70, 85]) {
+          if (at(value) - at(ticks.last) >= minGap &&
+              at(100) - at(value) >= minGap) {
+            ticks.add(value);
+          }
+        }
+        ticks.add(100);
+        return Column(
+          children: [
+            if (average != null)
+              SizedBox(
+                height: labelHeight,
+                width: width,
+                child: Stack(
+                  children: [
+                    label(
+                      average,
+                      'You · $average',
+                      const TextStyle(
+                        fontSize: 11,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            SizedBox(
+              height: 16,
+              width: width,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: 3,
+                    height: 10,
+                    child: ClipRRect(
+                      borderRadius: BorderRadius.circular(5),
+                      child: Row(
+                        // Childless segments need stretch to get the bar height.
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          for (final band in _scoreBands.reversed)
+                            Expanded(
+                              flex: band.max == 100
+                                  ? 100 - band.min
+                                  : band.max + 1 - band.min,
+                              child: ColoredBox(color: band.color),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  if (average != null)
+                    Positioned(
+                      left: (at(average) - 8).clamp(0.0, width - 16),
+                      top: 0,
+                      width: 16,
+                      height: 16,
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          shape: BoxShape.circle,
+                          border: Border.all(color: band!.color, width: 3),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 4),
+            SizedBox(
+              height: labelHeight,
+              width: width,
+              child: Stack(
+                children: [
+                  for (final value in ticks) label(value, '$value', tickStyle),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildGuideRow({
+    required Widget leading,
+    required String title,
+    required String subtitle,
+    required Color color,
+    String? tag,
+  }) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
         color: color.withAlpha((0.12 * 255).round()),
         borderRadius: BorderRadius.circular(12),
+        // Always reserve the border so highlighting never shifts the layout.
+        border: Border.all(
+          color: tag != null ? color : Colors.transparent,
+          width: 1.5,
+        ),
       ),
       child: Row(
         children: [
@@ -705,25 +794,59 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-            child: Center(child: Icon(icon, color: Colors.white, size: 20)),
+            child: Center(child: leading),
           ),
           const SizedBox(width: 14),
-
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  level,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black87,
-                  ),
+                // The tag sits beside the title and wraps below it when
+                // narrow, so the range line keeps the full width.
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 4,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
+                    ),
+                    if (tag != null)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.check_circle, size: 14, color: color),
+                            const SizedBox(width: 4),
+                            Text(
+                              tag,
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                  ],
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  range,
+                  subtitle,
                   style: TextStyle(fontSize: 13, color: Colors.grey[700]),
                 ),
               ],
@@ -770,48 +893,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
     required VoidCallback onTap,
     bool isLogout = false,
   }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: isLogout
-              ? Colors.red.withAlpha((0.1 * 255).round())
-              : Colors.white,
-          borderRadius: BorderRadius.circular(12),
-        ),
-        child: Row(
-          children: [
-            Icon(
-              icon,
-              color: isLogout ? Colors.red : AppTheme.primaryColor,
-              size: 24,
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                      color: isLogout ? Colors.red : Colors.black87,
-                    ),
-                  ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: TextStyle(fontSize: 12, color: Colors.grey[600]),
-                    ),
-                  ],
-                ],
+    return Material(
+      color: isLogout
+          ? Colors.red.withAlpha((0.1 * 255).round())
+          : Colors.white,
+      borderRadius: BorderRadius.circular(12),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Row(
+            children: [
+              Icon(
+                icon,
+                color: isLogout ? Colors.red : AppTheme.primaryColor,
+                size: 24,
               ),
-            ),
-            Icon(Icons.chevron_right, color: Colors.grey[400]),
-          ],
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: isLogout ? Colors.red : Colors.black87,
+                      ),
+                    ),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              // A chevron implies navigation; logging out is an action.
+              if (!isLogout) Icon(Icons.chevron_right, color: Colors.grey[400]),
+            ],
+          ),
         ),
       ),
     );

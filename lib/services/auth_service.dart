@@ -32,10 +32,7 @@ class AuthService {
         );
         return {'success': true, ...data};
       }
-      return {
-        'success': false,
-        'message': data['message'] ?? 'Login failed',
-      };
+      return {'success': false, 'message': data['message'] ?? 'Login failed'};
     } catch (_) {
       return {
         'success': false,
@@ -122,7 +119,8 @@ class AuthService {
         // Return no validated user until the backend can verify the session.
         if (response.statusCode == 401 ||
             (response.statusCode == 403 &&
-                jsonDecode(response.body)['message'] == 'This account is not active')) {
+                jsonDecode(response.body)['message'] ==
+                    'This account is not active')) {
           await clearSession();
         }
         return null;

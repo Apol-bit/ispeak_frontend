@@ -16,6 +16,11 @@ plugins {
 
 // Final identity selected by the team; never substitute a development ID.
 val finalApplicationId = "com.ispeak.app"
+// Explicit test build installs alongside the signed beta app.
+val phoneStaging = (providers.gradleProperty("dart-defines").orNull ?: "")
+    .split(',').filter(String::isNotBlank)
+    .map { String(Base64.getDecoder().decode(it), Charsets.UTF_8) }
+    .contains("ISPEAK_PHONE_STAGING=true")
 val keystorePropertiesFile = rootProject.file("key.properties")
 val keystoreProperties = Properties().apply {
     if (keystorePropertiesFile.exists()) {
@@ -46,6 +51,12 @@ fun validateApiConfiguration() {
         "Release API_BASE_URL must contain no credentials, query parameters or fragment"
     }
     val host = uri.host.lowercase().removePrefix("[").removeSuffix("]").trimEnd('.')
+    if (phoneStaging) {
+        require(host.startsWith("ispeak-node-phone-test-") && host.endsWith(".run.app") &&
+            uri.path == "/api") {
+            "Phone staging APK must target the separate ispeak-node-phone-test Cloud Run service /api"
+        }
+    }
     require(host != "localhost" && !host.endsWith(".localhost") && !host.endsWith(".local")) {
         "Release API_BASE_URL must not target localhost or a local network"
     }
@@ -121,7 +132,8 @@ android {
     }
 
     defaultConfig {
-        applicationId = finalApplicationId
+        applicationId = if (phoneStaging) "$finalApplicationId.phonestaging" else finalApplicationId
+        resValue("string", "app_name", if (phoneStaging) "iSpeak Phone Test" else "iSpeak")
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

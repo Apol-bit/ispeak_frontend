@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
 import 'package:ispeak/models/filler_feedback.dart';
 import 'package:ispeak/pages/result_page.dart';
+import 'package:ispeak/widgets/feedback_tips.dart';
 
 void main() {
   Map<String, dynamic> session(
@@ -116,4 +117,42 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+  testWidgets('Results limits Clarity to three non-repeating bullets', (
+    tester,
+  ) async {
+    final data = session(2, 3, coverage: 'mismatch');
+    final detail = data['fillerAnalysis'] as Map;
+    detail['words'] = [
+      {'word': 'um'},
+      {'word': 'uh'},
+    ];
+    detail['candidates'] = [
+      {'word': 'like'},
+      {'word': 'ano'},
+    ];
+    data.addAll({
+      'analysisValid': true,
+      'transcription': 'um uh like ano hello',
+      'wpmScore': 130,
+      'overallScore': 85,
+      'paceScore': 90,
+      'clarityScore': 80,
+      'energyScore': 80,
+      'analysisFeedback': {
+        'clarity':
+            'Some word timing or audibility needs practice. '
+            'Pronunciation confidence was unavailable. '
+            'Detected 2 grouped filler spans. '
+            'Filler analysis may be incomplete because transcript coverage differs.',
+      },
+    });
+    await tester.pumpWidget(MaterialApp(home: ResultPage(sessionData: data)));
+    final clarity = tester.widgetList<FeedbackTips>(find.byType(FeedbackTips));
+    expect(feedbackTips(clarity.elementAt(1).tips), [
+      'Some word timing or audibility needs practice.',
+      'Detected: um, uh.',
+      'Review matches (may be grammatical): like, ano.',
+    ]);
+    expect(tester.takeException(), isNull);
+  });
 }

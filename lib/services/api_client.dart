@@ -19,7 +19,9 @@ class ApiClient {
   }
 
   static const requestTimeout = Duration(seconds: 15);
-  static const uploadTimeout = Duration(minutes: 6);
+  // Must outlast the server chain (Node 16 min, Python 15 min) so a Cloud Run
+  // cold start plus a 5-minute recording can finish.
+  static const uploadTimeout = Duration(minutes: 16);
   static Future<void> Function()? onAuthenticationExpired;
   static bool _handlingAuthenticationFailure = false;
 

@@ -11,7 +11,7 @@ class ApiConfig {
   );
   static const String _androidApiHost = String.fromEnvironment(
     'API_HOST',
-    defaultValue: 'localhost',
+    defaultValue: '10.103.135.194',
   );
 
   static String get ipAddress {
@@ -19,8 +19,9 @@ class ApiConfig {
       return 'localhost';
     }
     if (Platform.isAndroid) {
-      // The default works with `adb reverse tcp:5000 tcp:5000`. For Wi-Fi phone
-      // testing, pass the computer's LAN address. Emulators use 10.0.2.2.
+      // Use the development computer's Wi-Fi address so USB is optional.
+      // Override API_HOST when the address changes. For USB forwarding use
+      // localhost; Android emulators use 10.0.2.2.
       return _androidApiHost;
     }
     if (Platform.isIOS) {

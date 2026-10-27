@@ -70,20 +70,26 @@ class ResultPage extends StatelessWidget {
     'Recorded pace: $wpm words per minute. Detailed findings are unavailable for this saved session.',
   );
 
-  Object _getClarityFeedback(int score, int fillers, bool available) =>
-      feedbackTips(
-            _feedback(
-              'clarity',
-              available
-                  ? '$fillers filler spans were detected. Detailed clarity findings are unavailable for this saved session.'
-                  : 'Filler-word analysis was unavailable for this session.',
-            ),
-          )
-          .where(
-            (tip) =>
-                !tip.startsWith('Pronunciation confidence was unavailable'),
-          )
-          .toList();
+  // At most three bullets: the lead clarity finding, the filler words heard,
+  // then the remaining notes. The subtitle already shows the filler count.
+  List<String> _getClarityFeedback(Map<String, dynamic> data) {
+    bool isWordList(String tip) =>
+        tip.startsWith('Detected:') || tip.startsWith('Review matches');
+    final fillerTips = feedbackTips(fillerFeedback(data));
+    final serverTips = feedbackTips(_feedback('clarity', ''))
+        .where(
+          (tip) => !tip.startsWith('Pronunciation confidence was unavailable'),
+        )
+        .toList();
+    final primary = serverTips.isNotEmpty
+        ? serverTips
+        : fillerTips.where((tip) => !isWordList(tip)).toList();
+    return [
+      ...primary.take(1),
+      ...fillerTips.where(isWordList),
+      ...primary.skip(1),
+    ].take(3).toList();
+  }
 
   Object _getEnergyFeedback(int score) => _feedback(
     'energy',
@@ -132,9 +138,6 @@ class ResultPage extends StatelessWidget {
     final data = sessionData ?? {};
 
     final int wpmDisplay = (data['wpmScore'] ?? 0).toInt();
-    final int fillerDisplay = (data['fillerWordCount'] ?? 0).toInt();
-    final bool fillerAnalysisAvailable =
-        data['fillerAnalysisAvailable'] ?? false;
     final num overallScore = data['overallScore'] is num
         ? data['overallScore']
         : 0;
@@ -333,16 +336,7 @@ class ResultPage extends StatelessWidget {
                       title: 'Clarity',
                       subtitle: _fillerSubtitle(data),
                       score: clarityScore,
-                      feedback: [
-                        ...feedbackTips(
-                          _getClarityFeedback(
-                            clarityScore,
-                            fillerDisplay,
-                            fillerAnalysisAvailable,
-                          ),
-                        ),
-                        fillerFeedback(data),
-                      ],
+                      feedback: _getClarityFeedback(data),
                     ),
                     const SizedBox(height: 16),
 

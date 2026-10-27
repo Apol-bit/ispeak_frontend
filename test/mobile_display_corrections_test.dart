@@ -92,7 +92,7 @@ void main() {
     'Results hides transcript and shows only verified concise filler counts',
     (tester) async {
       for (final item in [
-        (true, 2, '2 filler words detected'),
+        (true, 2, '2 confirmed filler spans'),
         (true, 0, 'No confirmed fillers detected'),
         (false, 2, 'Filler-word analysis unavailable'),
         (true, null, 'Filler-word analysis unavailable'),
